@@ -5,7 +5,7 @@ import streamlit as st
 import time
 
 # Refresh interval in seconds
-REFRESH_INTERVAL = 300  # 5 minutes
+REFRESH_INTERVAL = 30
 
 if "last_refresh" not in st.session_state:
     st.session_state["last_refresh"] = time.time()

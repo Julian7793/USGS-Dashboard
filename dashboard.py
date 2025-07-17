@@ -1,9 +1,9 @@
 import streamlit as st
 from scraper import fetch_site_graphs
-from streamlit_extras.st_autorefresh import st_autorefresh
+import streamlit as st
 
-# Auto-refresh every 10 minutes (600,000 ms)
-st_autorefresh(interval=600000, key="datarefresh")
+st.experimental_rerun()  # this reruns immediately, not on a timer
+
 
 st.set_page_config(page_title="USGS Water Graphs", layout="wide")
 st.title("📈 USGS Site Graphs (Live)")

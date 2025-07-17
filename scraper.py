@@ -3,7 +3,7 @@ site_info = [
     {"site_no": "03276000", "title": "East Fork Whitewater River at Brookville, IN - 03276000", "parm_cd": "00065"},
     {"site_no": "03275000", "title": "Whitewater River Near Alpine, IN - 03275000", "parm_cd": "00065"},
     {"site_no": "03276500", "title": "Whitewater River at Brookville, IN - 03276500", "parm_cd": "00065"},
-    {"site_no": "03275990", "title": "Brookville Lake at Brookville, IN - 03275990", "parm_cd": "00010"},
+    {"site_no": "03275990", "title": "Brookville Lake at Brookville, IN - 03275990", "parm_cd": "62614"},
 ]
 
 def fetch_site_graphs():

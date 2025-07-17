@@ -1,9 +1,9 @@
 site_info = [
-    {"site_no": "03274650", "title": "Mad River", "parm_cd": "00065"},
+    {"site_no": "03274650", "title": "Whitewater River Near Economy, IN - 03274650", "parm_cd": "00065"},
     {"site_no": "03276000", "title": "East Fork Whitewater River at Brookville, IN - 03276000", "parm_cd": "00065"},
     {"site_no": "03275000", "title": "Whitewater River Near Alpine, IN - 03275000", "parm_cd": "00065"},
     {"site_no": "03276500", "title": "Whitewater River at Brookville, IN - 03276500", "parm_cd": "00065"},
-    {"site_no": "03275990", "title": "Lagonda Ave (Discharge)", "parm_cd": "00060"},
+    {"site_no": "03275990", "title": "Brookville Lake at Brookville, IN - 03275990", "parm_cd": "00010"},
 ]
 
 def fetch_site_graphs():

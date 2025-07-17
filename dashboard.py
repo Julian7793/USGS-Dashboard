@@ -2,8 +2,18 @@ import streamlit as st
 from scraper import fetch_site_graphs
 import streamlit as st
 
-st.experimental_rerun()  # this reruns immediately, not on a timer
+import time
 
+# Refresh interval in seconds
+REFRESH_INTERVAL = 300  # 5 minutes
+
+if "last_refresh" not in st.session_state:
+    st.session_state["last_refresh"] = time.time()
+else:
+    elapsed = time.time() - st.session_state["last_refresh"]
+    if elapsed > REFRESH_INTERVAL:
+        st.session_state["last_refresh"] = time.time()
+        st.experimental_rerun()
 
 st.set_page_config(page_title="USGS Water Graphs", layout="wide")
 st.title("📈 USGS Site Graphs (Live)")

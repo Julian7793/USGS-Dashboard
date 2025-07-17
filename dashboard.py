@@ -13,6 +13,6 @@ for i, item in enumerate(data):
     with cols[i % 3]:
         st.markdown(f"#### [{item['title']}]({item['page_url']})", unsafe_allow_html=True)
         if item["image_url"]:
-            st.image(item["image_url"], use_column_width=True)
+            st.image(item["image_url"], use_container_width=True)
         else:
             st.warning("⚠️ No image found.")

@@ -5,27 +5,50 @@ import pytz
 from streamlit_autorefresh import st_autorefresh
 import requests
 
-# Constants
+# Refresh interval
 REFRESH_INTERVAL = 30
-ZIP_CODE = "47012"
-
-# Streamlit config
+eastern = pytz.timezone("US/Eastern")
 st.set_page_config(page_title="USGS Water Graphs", layout="wide")
 st_autorefresh(interval=REFRESH_INTERVAL * 1000, limit=None, key="autorefresh")
-eastern = pytz.timezone("US/Eastern")
 
-# Title and timestamp
 st.title("📈 USGS Site Graphs (Live)")
-updated_time = datetime.now(eastern)
-st.caption(f"🔄 Last updated: {updated_time.strftime('%Y-%m-%d %I:%M %p %Z')}")
-
-# Fetch USGS data
 data = fetch_site_graphs()
+updated_time = datetime.now(eastern)
+updated_time_str = updated_time.strftime("%Y-%m-%d %I:%M %p %Z")
+st.caption(f"🔄 Last updated: {updated_time_str}")
 
-# Create 3-column layout
+# ---------- River Safety Thresholds (mock for now) ----------
+# Replace these values with actual gauge data when integrating USGS IV API
+mock_flows = {
+    "03274650": 450,   # Economy
+    "03276000": 1250,  # East Fork
+    "03275000": 1700,  # Alpine
+    "03276500": 800,   # Brookville
+    "03275990": None   # Brookville Lake – lake level only
+}
+
+def get_river_safety_status(site_no, flow_cfs):
+    thresholds = {
+        "03274650": (500, 1500),
+        "03276000": (600, 1600),
+        "03275000": (550, 1550),
+        "03276500": (700, 1700),
+        "03275990": (0, 0),
+    }
+    low, high = thresholds.get(site_no, (500, 1500))
+    if flow_cfs is None:
+        return "❔ Unknown"
+    elif flow_cfs > high:
+        return "🔴 Unsafe"
+    elif flow_cfs > low:
+        return "🟡 Caution"
+    else:
+        return "🟢 Safe"
+
+# ---------- Layout 3-wide ----------
 cols = st.columns(3)
+weather_displayed = False
 
-# Render graphs + weather
 for i, item in enumerate(data):
     with cols[i % 3]:
         st.markdown(f"#### [{item['title']}]({item['page_url']})", unsafe_allow_html=True)
@@ -34,35 +57,41 @@ for i, item in enumerate(data):
         else:
             st.warning("⚠️ No image found.")
 
-    # Inject weather after Brookville Lake
-    if item.get("site_no") == "03275990":
-        with cols[(i + 1) % 3]:
-            st.markdown("### 🌤️ Brookville Weather Forecast")
+        # River safety status
+        site_no = item["page_url"].split("-")[-1]
+        flow = mock_flows.get(site_no)
+        status = get_river_safety_status(site_no, flow)
+        st.markdown(f"**River Status:** {status}")
 
-            API_KEY = st.secrets.get("WEATHERAPI_KEY")
-            if not API_KEY:
-                st.error("❌ WEATHERAPI_KEY is missing from Streamlit secrets.")
+        # Add weather to the right of Brookville Lake
+        if site_no == "03275990" and not weather_displayed:
+            weather_displayed = True
+            st.markdown("---")
+            st.markdown("### 🌤️ 3-Day Weather Forecast (47012)")
+
+            api_key = st.secrets.get("WEATHERAPI_KEY", "")
+            if not api_key:
+                st.error("❌ WEATHERAPI_KEY missing in Streamlit secrets.")
             else:
-                url = f"http://api.weatherapi.com/v1/forecast.json?key={API_KEY}&q={ZIP_CODE}&days=3&aqi=no&alerts=no"
                 try:
-                    res = requests.get(url)
-                    if res.status_code == 200:
-                        weather = res.json()
-                        current = weather["current"]
-                        forecast = weather["forecast"]["forecastday"]
+                    res = requests.get(
+                        f"https://api.weatherapi.com/v1/forecast.json?key={api_key}&q=47012&days=3&aqi=no&alerts=no"
+                    )
+                    res.raise_for_status()
+                    weather = res.json()
 
-                        st.metric("Current Temp (°F)", f"{current['temp_f']}°F")
-                        st.caption(current["condition"]["text"])
+                    for day in weather["forecast"]["forecastday"]:
+                        date = datetime.strptime(day["date"], "%Y-%m-%d").strftime("%a, %b %d")
+                        icon = day["day"]["condition"]["icon"]
+                        condition = day["day"]["condition"]["text"]
+                        high = day["day"]["maxtemp_f"]
+                        low = day["day"]["mintemp_f"]
 
-                        forecast_cols = st.columns(3)
-                        for j, day in enumerate(forecast):
-                            with forecast_cols[j]:
-                                st.markdown(f"**{day['date']}**")
-                                icon_url = f"https:{day['day']['condition']['icon']}"
-                                st.image(icon_url)
-                                st.markdown(f"↑ {day['day']['maxtemp_f']}°F")
-                                st.markdown(f"↓ {day['day']['mintemp_f']}°F")
-                    else:
-                        st.error(f"Failed to fetch weather data: {res.status_code}")
-                except Exception as e:
-                    st.error(f"Weather API error: {e}")
+                        st.markdown(f"**{date}**")
+                        st.image(f"https:{icon}", width=48)
+                        st.markdown(f"{condition}")
+                        st.markdown(f"🌡️ {low}°F – {high}°F")
+                        st.markdown("---")
+
+                except requests.RequestException as e:
+                    st.error(f"Request error: {e}")

@@ -8,7 +8,7 @@ import os
 import pandas as pd
 from dotenv import load_dotenv
 
-# Load environment variables
+# Load .env
 load_dotenv()
 
 # Constants
@@ -16,24 +16,24 @@ REFRESH_INTERVAL = 30
 CITY = "Brookville"
 API_KEY = os.getenv("WEATHERAPI_KEY")
 
-# Set Streamlit config
+# Page config
 st.set_page_config(page_title="USGS Water + Weather Dashboard", layout="wide")
 st_autorefresh(interval=REFRESH_INTERVAL * 1000, limit=None, key="autorefresh")
 eastern = pytz.timezone("US/Eastern")
 
-# Page title
+# Title
 st.title("📈 USGS Site Graphs (Live)")
 updated_time = datetime.now(eastern).strftime("%Y-%m-%d %I:%M %p %Z")
 st.caption(f"🔄 Last updated: {updated_time}")
 
-# Fetch USGS data
+# Get USGS graphs
 data = fetch_site_graphs()
 cols = st.columns(3)
 
-# Weather helper functions
+# Weather helpers
 def fetch_weather(city):
     if not API_KEY:
-        st.warning("⚠️ WeatherAPI key not found.")
+        st.warning("⚠️ WeatherAPI key not set.")
         return None
     url = f"http://api.weatherapi.com/v1/forecast.json?key={API_KEY}&q={city}&days=3&aqi=no&alerts=no"
     try:
@@ -48,24 +48,18 @@ def fetch_weather(city):
         return None
 
 def weather_icon(desc):
-    lookup = {
-        "Thunder": "⛈️",
-        "Rain": "🌧️",
-        "Showers": "🌦️",
-        "Sunny": "☀️",
-        "Clear": "☀️",
-        "Cloudy": "☁️",
-        "Partly cloudy": "⛅",
-        "Fog": "🌫️",
-        "Snow": "❄️",
+    icons = {
+        "Thunder": "⛈️", "Rain": "🌧️", "Showers": "🌦️",
+        "Sunny": "☀️", "Clear": "☀️", "Cloudy": "☁️",
+        "Partly cloudy": "⛅", "Fog": "🌫️", "Snow": "❄️",
         "Sleet": "🌨️"
     }
-    for k, v in lookup.items():
+    for k, v in icons.items():
         if k.lower() in desc.lower():
             return v
     return "🌡️"
 
-# Display each USGS graph
+# Loop through USGS sites
 for i, item in enumerate(data):
     with cols[i % 3]:
         st.markdown(f"#### [{item['title']}]({item['page_url']})", unsafe_allow_html=True)
@@ -74,7 +68,7 @@ for i, item in enumerate(data):
         else:
             st.warning("⚠️ No image found.")
 
-        # Add weather under Brookville Lake
+        # Weather forecast under Brookville Lake graph
         if "Brookville Lake" in item["title"]:
             with st.container():
                 st.markdown("#### 🌤️ Brookville Weather Forecast")
@@ -84,7 +78,7 @@ for i, item in enumerate(data):
                     current = weather["current"]
                     forecast = weather["forecast"]["forecastday"]
 
-                    # Current weather
+                    # Current
                     col1, col2 = st.columns([1, 2])
                     with col1:
                         st.markdown(f"### {current['temp_f']}°F {weather_icon(current['condition']['text'])}")
@@ -94,7 +88,7 @@ for i, item in enumerate(data):
                         st.markdown(f"**💨 Wind:** {current['wind_mph']} mph")
                         st.markdown(f"**🌫️ Humidity:** {current['humidity']}%")
 
-                    # Hourly precipitation chart (today only)
+                    # Hourly chart
                     hourly = forecast[0]["hour"]
                     precip = [h["precip_in"] for h in hourly]
                     labels = [datetime.strptime(h["time"], "%Y-%m-%d %H:%M").strftime("%-I %p") for h in hourly]
@@ -107,7 +101,7 @@ for i, item in enumerate(data):
                     st.markdown("**🌧️ Precipitation Next 24h**")
                     st.bar_chart(precip_df.set_index("Hour"))
 
-                    # 3-day forecast
+                    # 3-day outlook
                     st.markdown("**🗓️ 3-Day Outlook**")
                     day_cols = st.columns(3)
                     for j, day in enumerate(forecast):

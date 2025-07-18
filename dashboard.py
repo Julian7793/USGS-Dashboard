@@ -30,14 +30,14 @@ st.caption(f"🔄 Last updated: {updated_time_str}")
 # Helper functions for MetaWeather API
 
 def get_woeid(city):
-    url = f"https://www.metaweather.com/api/location/search/?query={city}"
+    url = f"http://www.metaweather.com/api/location/search/?query={city}"
     res = requests.get(url)
     if res.status_code == 200 and res.json():
         return res.json()[0]["woeid"]
     return None
 
 def get_weather(woeid):
-    url = f"https://www.metaweather.com/api/location/{woeid}/"
+    url = f"http://www.metaweather.com/api/location/{woeid}/"
     res = requests.get(url)
     if res.status_code == 200:
         data = res.json()

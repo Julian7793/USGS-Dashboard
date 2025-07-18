@@ -28,7 +28,9 @@ else:
             for i, day in enumerate(forecast):
                 with cols[i]:
                     st.markdown(f"**{day['date']}**")
-                    st.image(day["day"]["condition"]["icon"])
+                    # Fix: Properly handle image URL
+                    icon_url = f"https:{day['day']['condition']['icon']}"
+                    st.image(icon_url)
                     st.markdown(f"↑ {day['day']['maxtemp_f']}°F")
                     st.markdown(f"↓ {day['day']['mintemp_f']}°F")
         else:

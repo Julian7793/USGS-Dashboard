@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-REFRESH_INTERVAL = 30
+REFRESH_INTERVAL = 60
 st.set_page_config(page_title="USGS Water Graphs", layout="wide")
 st_autorefresh(interval=REFRESH_INTERVAL * 1000, limit=None, key="autorefresh")
 eastern = pytz.timezone("US/Eastern")

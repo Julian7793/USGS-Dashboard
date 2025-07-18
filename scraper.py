@@ -18,9 +18,11 @@ def fetch_site_graphs():
         page_url = f"https://waterdata.usgs.gov/monitoring-location/USGS-{site_no}"
 
         site_data.append({
+            "site_no": site_no,  # 🔹 Add this line
             "title": title,
             "image_url": image_url,
             "page_url": page_url
         })
 
     return site_data
+

@@ -14,6 +14,15 @@ else:
     if elapsed > REFRESH_INTERVAL:
         st.session_state["last_refresh"] = time.time()
         st.experimental_rerun()
+        
+####
+from datetime import datetime
+import pytz
+
+# --- Timezone for Eastern Time (handles daylight saving)
+eastern = pytz.timezone("US/Eastern")
+now_eastern = datetime.now(eastern)
+####
 
 st.set_page_config(page_title="USGS Water Graphs", layout="wide")
 st.title("📈 USGS Site Graphs (Live)")
@@ -30,6 +39,4 @@ for i, item in enumerate(data):
             st.image(item["image_url"], use_container_width=True)
         else:
             st.warning("⚠️ No image found.")
-
-st.caption(f"🔄 Last updated: {time.strftime('%Y-%m-%d %H:%M:%S')}")
 

@@ -30,3 +30,6 @@ for i, item in enumerate(data):
             st.image(item["image_url"], use_container_width=True)
         else:
             st.warning("⚠️ No image found.")
+
+st.caption(f"🔄 Last updated: {time.strftime('%Y-%m-%d %H:%M:%S')}")
+

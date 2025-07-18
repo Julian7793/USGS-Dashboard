@@ -13,7 +13,7 @@ load_dotenv()
 
 # Constants
 REFRESH_INTERVAL = 30
-CITY = "47012"
+ZIP_CODE = "47012"  # Brookville, IN ZIP
 API_KEY = os.getenv("WEATHERAPI_KEY")
 
 # Set Streamlit config
@@ -31,11 +31,11 @@ data = fetch_site_graphs()
 cols = st.columns(3)
 
 # Weather helper functions
-def fetch_weather(city):
+def fetch_weather(zip_code):
     if not API_KEY:
         st.warning("⚠️ WeatherAPI key not found.")
         return None
-    url = f"http://api.weatherapi.com/v1/forecast.json?key={API_KEY}&q={city}&days=3&aqi=no&alerts=no"
+    url = f"http://api.weatherapi.com/v1/forecast.json?key={API_KEY}&q={zip_code}&days=3&aqi=no&alerts=no"
     try:
         res = requests.get(url)
         if res.status_code == 200:
@@ -79,7 +79,7 @@ for i, item in enumerate(data):
             with st.container():
                 st.markdown("#### 🌤️ Brookville Weather Forecast")
 
-                weather = fetch_weather(CITY)
+                weather = fetch_weather(ZIP_CODE)
                 if weather:
                     current = weather["current"]
                     forecast = weather["forecast"]["forecastday"]
@@ -93,19 +93,6 @@ for i, item in enumerate(data):
                         st.markdown(f"**💧 Precip:** {current['precip_in']} in")
                         st.markdown(f"**💨 Wind:** {current['wind_mph']} mph")
                         st.markdown(f"**🌫️ Humidity:** {current['humidity']}%")
-
-                    # Hourly precipitation chart (today only)
-                    hourly = forecast[0]["hour"]
-                    precip = [h["precip_in"] for h in hourly]
-                    labels = [datetime.strptime(h["time"], "%Y-%m-%d %H:%M").strftime("%-I %p") for h in hourly]
-
-                    precip_df = pd.DataFrame({
-                        "Hour": labels,
-                        "Precipitation (in)": precip
-                    })
-
-                    st.markdown("**🌧️ Precipitation Next 24h**")
-                    st.bar_chart(precip_df.set_index("Hour"))
 
                     # 3-day forecast
                     st.markdown("**🗓️ 3-Day Outlook**")

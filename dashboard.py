@@ -5,9 +5,10 @@ import pytz
 from streamlit_autorefresh import st_autorefresh
 import requests
 import os
+import pandas as pd
 from dotenv import load_dotenv
 
-# Load env for API key
+# Load .env for API key
 load_dotenv()
 
 # Constants
@@ -20,17 +21,16 @@ st.set_page_config(page_title="USGS Water + Weather Dashboard", layout="wide")
 st_autorefresh(interval=REFRESH_INTERVAL * 1000, limit=None, key="autorefresh")
 eastern = pytz.timezone("US/Eastern")
 
-# Title
+# Page title
 st.title("📈 USGS Site Graphs (Live)")
 updated_time = datetime.now(eastern).strftime("%Y-%m-%d %I:%M %p %Z")
 st.caption(f"🔄 Last updated: {updated_time}")
 
-# Fetch graphs
+# Fetch USGS data
 data = fetch_site_graphs()
 cols = st.columns(3)
 
-# --- Weather helper functions ---
-
+# Weather helper functions
 def fetch_weather(city):
     if not API_KEY:
         st.warning("⚠️ WeatherAPI key not found.")
@@ -65,7 +65,7 @@ def weather_icon(desc):
             return v
     return "🌡️"
 
-# --- USGS graph display + weather card injection ---
+# Display each USGS graph
 for i, item in enumerate(data):
     with cols[i % 3]:
         st.markdown(f"#### [{item['title']}]({item['page_url']})", unsafe_allow_html=True)
@@ -74,6 +74,7 @@ for i, item in enumerate(data):
         else:
             st.warning("⚠️ No image found.")
 
+        # Inject weather below Brookville Lake graph
         if "Brookville Lake" in item["title"]:
             st.markdown("---")
             st.subheader("🌤️ Brookville Weather Forecast")
@@ -83,7 +84,7 @@ for i, item in enumerate(data):
                 current = weather["current"]
                 forecast = weather["forecast"]["forecastday"]
 
-                # --- Current Conditions ---
+                # Current conditions
                 col1, col2 = st.columns([1, 2])
                 with col1:
                     st.markdown(f"### {current['temp_f']}°F {weather_icon(current['condition']['text'])}")
@@ -93,26 +94,24 @@ for i, item in enumerate(data):
                     st.markdown(f"**💨 Wind:** {current['wind_mph']} mph")
                     st.markdown(f"**🌫️ Humidity:** {current['humidity']}%")
 
-                # --- Hourly Precip Chart ---
+                # Hourly precipitation chart
                 hourly = forecast[0]["hour"]
                 precip = [h["precip_in"] for h in hourly]
                 labels = [datetime.strptime(h["time"], "%Y-%m-%d %H:%M").strftime("%-I %p") for h in hourly]
-                st.markdown("**🌧️ Precipitation Next 24h**")
-                st.bar_chart(data=precip, x=labels)
 
-                # --- 7-Day Forecast ---
+                precip_df = pd.DataFrame({
+                    "Hour": labels,
+                    "Precipitation (in)": precip
+                })
+
+                st.markdown("**🌧️ Precipitation Next 24h**")
+                st.bar_chart(precip_df.set_index("Hour"))
+
+                # 7-Day forecast
                 st.markdown("**🗓️ 7-Day Outlook**")
                 day_cols = st.columns(len(forecast))
                 for i, day in enumerate(forecast):
                     with day_cols[i]:
                         dt = datetime.strptime(day["date"], "%Y-%m-%d").strftime("%a")
                         condition = day["day"]["condition"]["text"]
-                        emoji = weather_icon(condition)
-                        st.markdown(f"**{dt}**")
-                        st.markdown(emoji)
-                        st.markdown(f"↑ {day['day']['maxtemp_f']}°F")
-                        st.markdown(f"↓ {day['day']['mintemp_f']}°F")
-                        st.caption(condition)
-
-            else:
-                st.warning("⚠️ Could not load weather data.")
+                        em

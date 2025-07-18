@@ -8,7 +8,7 @@ import os
 import pandas as pd
 from dotenv import load_dotenv
 
-# Load .env for API key
+# Load environment variables
 load_dotenv()
 
 # Constants
@@ -74,7 +74,7 @@ for i, item in enumerate(data):
         else:
             st.warning("⚠️ No image found.")
 
-        # Inject weather below Brookville Lake graph
+        # Add weather under Brookville Lake
         if "Brookville Lake" in item["title"]:
             st.markdown("---")
             st.subheader("🌤️ Brookville Weather Forecast")
@@ -84,7 +84,7 @@ for i, item in enumerate(data):
                 current = weather["current"]
                 forecast = weather["forecast"]["forecastday"]
 
-                # Current conditions
+                # Current weather
                 col1, col2 = st.columns([1, 2])
                 with col1:
                     st.markdown(f"### {current['temp_f']}°F {weather_icon(current['condition']['text'])}")
@@ -94,7 +94,7 @@ for i, item in enumerate(data):
                     st.markdown(f"**💨 Wind:** {current['wind_mph']} mph")
                     st.markdown(f"**🌫️ Humidity:** {current['humidity']}%")
 
-                # Hourly precipitation chart
+                # Hourly precipitation
                 hourly = forecast[0]["hour"]
                 precip = [h["precip_in"] for h in hourly]
                 labels = [datetime.strptime(h["time"], "%Y-%m-%d %H:%M").strftime("%-I %p") for h in hourly]
@@ -107,11 +107,18 @@ for i, item in enumerate(data):
                 st.markdown("**🌧️ Precipitation Next 24h**")
                 st.bar_chart(precip_df.set_index("Hour"))
 
-                # 7-Day forecast
+                # 7-day forecast
                 st.markdown("**🗓️ 7-Day Outlook**")
                 day_cols = st.columns(len(forecast))
-                for i, day in enumerate(forecast):
-                    with day_cols[i]:
+                for j, day in enumerate(forecast):
+                    with day_cols[j]:
                         dt = datetime.strptime(day["date"], "%Y-%m-%d").strftime("%a")
                         condition = day["day"]["condition"]["text"]
-                        em
+                        emoji = weather_icon(condition)
+                        st.markdown(f"**{dt}**")
+                        st.markdown(emoji)
+                        st.markdown(f"↑ {day['day']['maxtemp_f']}°F")
+                        st.markdown(f"↓ {day['day']['mintemp_f']}°F")
+                        st.caption(condition)
+            else:
+                st.warning("⚠️ Could not load weather data.")

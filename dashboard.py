@@ -29,6 +29,9 @@ st.title("📈 USGS Site Graphs (Live)")
 
 data = fetch_site_graphs()
 
+####
+st.caption(f"🔄 Last updated: {now_eastern.strftime('%Y-%m-%d %I:%M %p %Z')}")
+
 # 3 cards per row
 cols = st.columns(3)
 

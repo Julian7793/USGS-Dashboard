@@ -35,7 +35,7 @@ def fetch_weather(city):
     if not API_KEY:
         st.warning("⚠️ WeatherAPI key not found.")
         return None
-    url = f"http://api.weatherapi.com/v1/forecast.json?key={API_KEY}&q={city}&days=7&aqi=no&alerts=no"
+    url = f"http://api.weatherapi.com/v1/forecast.json?key={API_KEY}&q={city}&days=3&aqi=no&alerts=no"
     try:
         res = requests.get(url)
         if res.status_code == 200:
@@ -76,49 +76,49 @@ for i, item in enumerate(data):
 
         # Add weather under Brookville Lake
         if "Brookville Lake" in item["title"]:
-            st.markdown("---")
-            st.subheader("🌤️ Brookville Weather Forecast")
+            with st.container():
+                st.markdown("#### 🌤️ Brookville Weather Forecast")
 
-            weather = fetch_weather(CITY)
-            if weather:
-                current = weather["current"]
-                forecast = weather["forecast"]["forecastday"]
+                weather = fetch_weather(CITY)
+                if weather:
+                    current = weather["current"]
+                    forecast = weather["forecast"]["forecastday"]
 
-                # Current weather
-                col1, col2 = st.columns([1, 2])
-                with col1:
-                    st.markdown(f"### {current['temp_f']}°F {weather_icon(current['condition']['text'])}")
-                    st.caption(current["condition"]["text"])
-                with col2:
-                    st.markdown(f"**💧 Precip:** {current['precip_in']} in")
-                    st.markdown(f"**💨 Wind:** {current['wind_mph']} mph")
-                    st.markdown(f"**🌫️ Humidity:** {current['humidity']}%")
+                    # Current weather
+                    col1, col2 = st.columns([1, 2])
+                    with col1:
+                        st.markdown(f"### {current['temp_f']}°F {weather_icon(current['condition']['text'])}")
+                        st.caption(current["condition"]["text"])
+                    with col2:
+                        st.markdown(f"**💧 Precip:** {current['precip_in']} in")
+                        st.markdown(f"**💨 Wind:** {current['wind_mph']} mph")
+                        st.markdown(f"**🌫️ Humidity:** {current['humidity']}%")
 
-                # Hourly precipitation
-                hourly = forecast[0]["hour"]
-                precip = [h["precip_in"] for h in hourly]
-                labels = [datetime.strptime(h["time"], "%Y-%m-%d %H:%M").strftime("%-I %p") for h in hourly]
+                    # Hourly precipitation chart (today only)
+                    hourly = forecast[0]["hour"]
+                    precip = [h["precip_in"] for h in hourly]
+                    labels = [datetime.strptime(h["time"], "%Y-%m-%d %H:%M").strftime("%-I %p") for h in hourly]
 
-                precip_df = pd.DataFrame({
-                    "Hour": labels,
-                    "Precipitation (in)": precip
-                })
+                    precip_df = pd.DataFrame({
+                        "Hour": labels,
+                        "Precipitation (in)": precip
+                    })
 
-                st.markdown("**🌧️ Precipitation Next 24h**")
-                st.bar_chart(precip_df.set_index("Hour"))
+                    st.markdown("**🌧️ Precipitation Next 24h**")
+                    st.bar_chart(precip_df.set_index("Hour"))
 
-                # 7-day forecast
-                st.markdown("**🗓️ 7-Day Outlook**")
-                day_cols = st.columns(len(forecast))
-                for j, day in enumerate(forecast):
-                    with day_cols[j]:
-                        dt = datetime.strptime(day["date"], "%Y-%m-%d").strftime("%a")
-                        condition = day["day"]["condition"]["text"]
-                        emoji = weather_icon(condition)
-                        st.markdown(f"**{dt}**")
-                        st.markdown(emoji)
-                        st.markdown(f"↑ {day['day']['maxtemp_f']}°F")
-                        st.markdown(f"↓ {day['day']['mintemp_f']}°F")
-                        st.caption(condition)
-            else:
-                st.warning("⚠️ Could not load weather data.")
+                    # 3-day forecast
+                    st.markdown("**🗓️ 3-Day Outlook**")
+                    day_cols = st.columns(3)
+                    for j, day in enumerate(forecast):
+                        with day_cols[j]:
+                            dt = datetime.strptime(day["date"], "%Y-%m-%d").strftime("%a")
+                            condition = day["day"]["condition"]["text"]
+                            emoji = weather_icon(condition)
+                            st.markdown(f"**{dt}**")
+                            st.markdown(emoji)
+                            st.markdown(f"↑ {day['day']['maxtemp_f']}°F")
+                            st.markdown(f"↓ {day['day']['mintemp_f']}°F")
+                            st.caption(condition)
+                else:
+                    st.warning("⚠️ Could not load weather data.")

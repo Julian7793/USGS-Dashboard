@@ -13,7 +13,7 @@ load_dotenv()
 
 # Constants
 REFRESH_INTERVAL = 30
-CITY = "Brookville"
+CITY = "47012"
 API_KEY = os.getenv("WEATHERAPI_KEY")
 
 # Set Streamlit config

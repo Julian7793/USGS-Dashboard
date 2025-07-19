@@ -20,12 +20,12 @@ data = fetch_site_graphs()
 updated_time = datetime.now(eastern)
 st.caption(f"🔄 Last updated: {updated_time.strftime('%Y-%m-%d %I:%M %p %Z')}")
 
-# Fetch real-time gage height (ft) from USGS API
+# Fetch real-time gage height and lake elevation
 def fetch_live_stages(site_ids):
     params = {
         "format": "json",
         "sites": ",".join(site_ids),
-        "parameterCd": "00065",  # Gage height (ft)
+        "parameterCd": "00065,00062",  # Gage height and lake elevation
         "siteStatus": "all"
     }
     url = "https://waterservices.usgs.gov/nwis/iv/"
@@ -33,13 +33,21 @@ def fetch_live_stages(site_ids):
     resp.raise_for_status()
     data = resp.json()
     stages = {}
+
     for site in data.get("value", {}).get("timeSeries", []):
         site_no = site["sourceInfo"]["siteCode"][0]["value"]
+        param = site["variable"]["variableCode"][0]["value"]
         vals = site["values"][0]["value"]
-        if vals:
-            stages[site_no] = float(vals[-1]["value"])
-        else:
-            stages[site_no] = None
+        if not vals:
+            continue
+        value = float(vals[-1]["value"])
+
+        # Brookville Lake uses lake elevation (00062)
+        if site_no == BROOKVILLE_SITE_NO and param == "00062":
+            stages[site_no] = value
+        elif site_no != BROOKVILLE_SITE_NO and param == "00065":
+            stages[site_no] = value
+
     return stages
 
 # Station-specific limits and flood stages
@@ -106,11 +114,11 @@ def get_lake_status(level_ft):
     lower_bound = BROOKVILLE_AVG_LEVEL * 0.90
     upper_bound = BROOKVILLE_AVG_LEVEL * 1.10
     if level_ft < lower_bound:
-        return f"🔽 Below Average ({level_ft:.2f} ft)"
+        return f"🔽 Below Average"
     elif level_ft > upper_bound:
-        return f"🔼 Above Average ({level_ft:.2f} ft)"
+        return f"🔼 Above Average"
     else:
-        return f"🟢 Average ({level_ft:.2f} ft)"
+        return f"🟢 Average"
 
 # Fetch live values
 site_list = list(station_limits.keys())
@@ -133,32 +141,29 @@ for i, item in enumerate(data):
         else:
             st.warning("⚠️ No image found.")
 
-        # Extract site_no
         site_no = item["page_url"].split("-")[-1]
         value = live_stages.get(site_no)
 
-        # Show lake or river status
+        # Display site-specific status
         if site_no == BROOKVILLE_SITE_NO:
-            lake_status = get_lake_status(value)
-            st.markdown(f"**Lake Status:** {lake_status}")
+            status = get_lake_status(value)
+            st.markdown(f"**Lake Elevation:** {value:.2f} ft – {status}")
         else:
-            river_status = get_river_safety_status(site_no, value)
-            st.markdown(f"**River Status:** {river_status}")
+            status = get_river_safety_status(site_no, value)
+            st.markdown(f"**River Status:** {status}")
 
-        # Add description/caption
+        # Show operational/flood/lake metadata
         cfg = station_limits.get(site_no)
         if cfg:
             if cfg["type"] == "operational":
-                st.caption(
-                    f"Operational limits: {cfg['min']} ft (min), {cfg['max']} ft (max)."
-                )
+                st.caption(f"Operational limits: {cfg['min']} ft (min), {cfg['max']} ft (max).")
             elif cfg["type"] == "flood":
                 stages = ", ".join(f"{stage} at {val} ft" for stage, val in cfg["stages"].items())
                 st.caption(f"Flood stages – {stages}.")
             elif cfg["type"] == "lake":
                 st.caption(cfg.get("note", "Lake level shown in ft."))
 
-        # Inject weather block next to Brookville Lake
+        # Weather next to Brookville Lake
         if site_no == BROOKVILLE_SITE_NO and not weather_displayed:
             weather_displayed = True
             st.markdown("---")

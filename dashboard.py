@@ -8,7 +8,7 @@ import requests
 # Constants
 REFRESH_INTERVAL = 30
 eastern = pytz.timezone("US/Eastern")
-BROOKVILLE_AVG_LEVEL = 748  # updated to realistic lake elevation
+BROOKVILLE_AVG_LEVEL = 748  # updated to realistic Lake Status
 BROOKVILLE_SITE_NO = "03275990"
 
 # Configure Streamlit
@@ -143,9 +143,9 @@ for i, item in enumerate(data):
         if site_no == BROOKVILLE_SITE_NO:
             lake_status = get_lake_status(value)
             if value is not None:
-                st.markdown(f"**Lake Elevation:** {value:.2f} ft – {lake_status}")
+                st.markdown(f"**Lake Status:** {value:.2f} ft – {lake_status}")
             else:
-                st.markdown(f"**Lake Elevation:** ❔ No data – {lake_status}")
+                st.markdown(f"**Lake Status:** ❔ No data – {lake_status}")
         else:
             river_status = get_river_safety_status(site_no, value)
             st.markdown(f"**River Status:** {river_status}")

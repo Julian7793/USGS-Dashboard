@@ -4,17 +4,12 @@ from datetime import datetime
 import pytz
 from streamlit_autorefresh import st_autorefresh
 import requests
-from bs4 import BeautifulSoup
 
 # Constants
 REFRESH_INTERVAL = 30
 eastern = pytz.timezone("US/Eastern")
-BROOKVILLE_AVG_LEVEL = 748
+BROOKVILLE_AVG_LEVEL = 748  # Average lake level
 BROOKVILLE_SITE_NO = "03275990"
-BROOKVILLE_LAKE_URL = (
-    "https://waterdata.usgs.gov/monitoring-location/USGS-03275990/"
-    "#dataTypeId=continuous-62614-0&period=P7D&showMedian=true"
-)
 
 # Configure Streamlit
 st.set_page_config(page_title="USGS Water Graphs", layout="wide")
@@ -30,8 +25,8 @@ def fetch_live_stages(site_ids):
     params = {
         "format": "json",
         "sites": ",".join(site_ids),
-        "parameterCd": "00065",
-        "siteStatus": "all",
+        "parameterCd": "00065",  # Gage height (ft)
+        "siteStatus": "all"
     }
     url = "https://waterservices.usgs.gov/nwis/iv/"
     resp = requests.get(url, params=params, timeout=10)
@@ -47,21 +42,7 @@ def fetch_live_stages(site_ids):
             stages[site_no] = None
     return stages
 
-# Fallback: Scrape Brookville lake level
-def scrape_brookville_level():
-    try:
-        res = requests.get(BROOKVILLE_LAKE_URL, timeout=10)
-        res.raise_for_status()
-        soup = BeautifulSoup(res.text, "html.parser")
-        latest = soup.find("span", class_="latest-value")
-        if latest and latest.text.strip():
-            level = float(latest.text.strip().replace("ft", "").strip())
-            return level
-    except Exception as e:
-        st.warning(f"⚠️ Failed to scrape Brookville lake level: {e}")
-    return None
-
-# Station-specific limits
+# Station-specific limits and flood stages
 station_limits = {
     "03274650": {
         "name": "Whitewater River Near Economy, IN",
@@ -69,7 +50,7 @@ station_limits = {
         "min": 2.26,
         "max": 13.98,
         "min_msg": "Lower intake out of water",
-        "max_msg": "Float hitting bottom of gage shelf",
+        "max_msg": "Float hitting bottom of gage shelf"
     },
     "03276000": {
         "name": "East Fork Whitewater River at Brookville, IN",
@@ -77,30 +58,31 @@ station_limits = {
         "min": 0.69,
         "max": 25.72,
         "min_msg": "Lower intake out of water",
-        "max_msg": "Float hitting bottom of gage shelf",
+        "max_msg": "Float hitting bottom of gage shelf"
     },
     "03275000": {
         "name": "Whitewater River Near Alpine, IN",
         "type": "flood",
-        "stages": {"Action": 10, "Minor": 14, "Moderate": 17, "Major": 19},
+        "stages": {"Action": 10, "Minor": 14, "Moderate": 17, "Major": 19}
     },
     "03276500": {
         "name": "Whitewater River at Brookville, IN",
         "type": "flood",
-        "stages": {"Action": 14, "Minor": 20, "Moderate": 23, "Major": 29},
+        "stages": {"Action": 14, "Minor": 20, "Moderate": 23, "Major": 29}
     },
     "03275990": {
         "name": "Brookville Lake at Brookville, IN",
         "type": "lake",
-        "note": "Lake or reservoir water surface elevation above NGVD 1929, ft",
-    },
+        "note": "Lake or reservoir water surface elevation above NGVD 1929, ft"
+    }
 }
 
-# River status
+# River Safety Status
 def get_river_safety_status(site_no, value):
     cfg = station_limits.get(site_no)
     if value is None or cfg is None:
         return "❔ Unknown"
+
     if cfg["type"] == "operational":
         if value < cfg["min"]:
             return f"🔽 Too Low – {cfg['min_msg']} ({value:.2f} ft)"
@@ -108,14 +90,16 @@ def get_river_safety_status(site_no, value):
             return f"🔼 Too High – {cfg['max_msg']} ({value:.2f} ft)"
         else:
             return f"🟢 Normal Operating Range ({value:.2f} ft)"
+
     elif cfg["type"] == "flood":
         for stage, threshold in reversed(sorted(cfg["stages"].items(), key=lambda x: x[1])):
             if value >= threshold:
                 return f"⚠️ {stage} Flood Stage Reached ({value:.2f} ft)"
         return f"🟢 Below Flood Stage ({value:.2f} ft)"
+
     return "🟢 Normal"
 
-# Lake status
+# Lake Level Status
 def get_lake_status(level_ft):
     if level_ft is None:
         return "❔ Unknown"
@@ -128,18 +112,13 @@ def get_lake_status(level_ft):
     else:
         return f"🟢 Normal Level ({level_ft:.2f} ft)"
 
-# Fetch live values
+# Fetch live stages
+site_list = list(station_limits.keys())
 try:
-    live_stages = fetch_live_stages(list(station_limits.keys()))
-except Exception as e:
-    st.error(f"❌ Failed to fetch USGS live stages: {e}")
+    live_stages = fetch_live_stages(site_list)
+except requests.RequestException as e:
+    st.error(f"⚠️ Failed to fetch USGS gage heights: {e}")
     live_stages = {}
-
-# Fallback: scrape lake level if API returned None
-if BROOKVILLE_SITE_NO in live_stages and live_stages[BROOKVILLE_SITE_NO] is None:
-    scraped_level = scrape_brookville_level()
-    if scraped_level:
-        live_stages[BROOKVILLE_SITE_NO] = scraped_level
 
 # Layout
 cols = st.columns(3)
@@ -148,15 +127,19 @@ weather_displayed = False
 for i, item in enumerate(data):
     with cols[i % 3]:
         st.markdown(f"#### [{item['title']}]({item['page_url']})", unsafe_allow_html=True)
+
         if item["image_url"]:
             st.image(item["image_url"], use_container_width=True)
         else:
             st.warning("⚠️ No image found.")
 
+        # Extract site_no
         site_no = item["page_url"].split("-")[-1]
         value = live_stages.get(site_no)
+
         cfg = station_limits.get(site_no)
 
+        # Show status
         if site_no == BROOKVILLE_SITE_NO:
             lake_status = get_lake_status(value)
             if value is not None:
@@ -167,6 +150,7 @@ for i, item in enumerate(data):
             river_status = get_river_safety_status(site_no, value)
             st.markdown(f"**River Status:** {river_status}")
 
+        # Caption
         if cfg:
             if cfg["type"] == "operational":
                 st.caption(f"Operational limits: {cfg['min']} ft (min), {cfg['max']} ft (max).")
@@ -176,10 +160,12 @@ for i, item in enumerate(data):
             elif cfg["type"] == "lake":
                 st.caption(cfg.get("note", "Lake level shown in ft."))
 
+        # Weather Forecast
         if site_no == BROOKVILLE_SITE_NO and not weather_displayed:
             weather_displayed = True
             st.markdown("---")
             st.markdown("### 🌤️ 3-Day Weather Forecast (47012)")
+
             api_key = st.secrets.get("WEATHERAPI_KEY", "")
             if not api_key:
                 st.error("❌ WEATHERAPI_KEY missing in Streamlit secrets.")
@@ -189,3 +175,20 @@ for i, item in enumerate(data):
                         f"https://api.weatherapi.com/v1/forecast.json?key={api_key}&q=47012&days=3&aqi=no&alerts=no"
                     )
                     res.raise_for_status()
+                    weather = res.json()
+
+                    for day in weather["forecast"]["forecastday"]:
+                        date = datetime.strptime(day["date"], "%Y-%m-%d").strftime("%a, %b %d")
+                        icon = day["day"]["condition"]["icon"]
+                        condition = day["day"]["condition"]["text"]
+                        high = day["day"]["maxtemp_f"]
+                        low = day["day"]["mintemp_f"]
+
+                        st.markdown(f"**{date}**")
+                        st.image(f"https:{icon}", width=48)
+                        st.markdown(f"{condition}")
+                        st.markdown(f"🌡️ {low}°F – {high}°F")
+                        st.markdown("---")
+
+                except requests.RequestException as e:
+                    st.error(f"Request error: {e}")

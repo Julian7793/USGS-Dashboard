@@ -8,7 +8,7 @@ import requests
 # Constants
 REFRESH_INTERVAL = 30
 eastern = pytz.timezone("US/Eastern")
-BROOKVILLE_AVG_LEVEL = 148  # feet
+BROOKVILLE_AVG_LEVEL = 748  # updated to realistic lake elevation
 BROOKVILLE_SITE_NO = "03275990"
 
 # Configure Streamlit
@@ -20,12 +20,12 @@ data = fetch_site_graphs()
 updated_time = datetime.now(eastern)
 st.caption(f"🔄 Last updated: {updated_time.strftime('%Y-%m-%d %I:%M %p %Z')}")
 
-# Fetch real-time gage height and lake elevation
+# Fetch real-time gage height (ft) from USGS API
 def fetch_live_stages(site_ids):
     params = {
         "format": "json",
         "sites": ",".join(site_ids),
-        "parameterCd": "00065,00062",  # Gage height and lake elevation
+        "parameterCd": "00065",  # Gage height (ft)
         "siteStatus": "all"
     }
     url = "https://waterservices.usgs.gov/nwis/iv/"
@@ -33,21 +33,13 @@ def fetch_live_stages(site_ids):
     resp.raise_for_status()
     data = resp.json()
     stages = {}
-
     for site in data.get("value", {}).get("timeSeries", []):
         site_no = site["sourceInfo"]["siteCode"][0]["value"]
-        param = site["variable"]["variableCode"][0]["value"]
         vals = site["values"][0]["value"]
-        if not vals:
-            continue
-        value = float(vals[-1]["value"])
-
-        # Brookville Lake uses lake elevation (00062)
-        if site_no == BROOKVILLE_SITE_NO and param == "00062":
-            stages[site_no] = value
-        elif site_no != BROOKVILLE_SITE_NO and param == "00065":
-            stages[site_no] = value
-
+        if vals:
+            stages[site_no] = float(vals[-1]["value"])
+        else:
+            stages[site_no] = None
     return stages
 
 # Station-specific limits and flood stages
@@ -85,7 +77,7 @@ station_limits = {
     }
 }
 
-# River or Flood Safety Status
+# River Safety
 def get_river_safety_status(site_no, value):
     cfg = station_limits.get(site_no)
     if value is None or cfg is None:
@@ -107,20 +99,20 @@ def get_river_safety_status(site_no, value):
 
     return "🟢 Normal"
 
-# Lake Level Status for Brookville Lake
+# Lake Status
 def get_lake_status(level_ft):
     if level_ft is None:
         return "❔ Unknown"
-    lower_bound = BROOKVILLE_AVG_LEVEL * 0.90
-    upper_bound = BROOKVILLE_AVG_LEVEL * 1.10
+    lower_bound = BROOKVILLE_AVG_LEVEL * 0.98
+    upper_bound = BROOKVILLE_AVG_LEVEL * 1.02
     if level_ft < lower_bound:
-        return f"🔽 Below Average"
+        return f"🔽 Below Normal ({level_ft:.2f} ft)"
     elif level_ft > upper_bound:
-        return f"🔼 Above Average"
+        return f"🔼 Above Normal ({level_ft:.2f} ft)"
     else:
-        return f"🟢 Average"
+        return f"🟢 Normal Level ({level_ft:.2f} ft)"
 
-# Fetch live values
+# Fetch live stage values
 site_list = list(station_limits.keys())
 try:
     live_stages = fetch_live_stages(site_list)
@@ -141,23 +133,24 @@ for i, item in enumerate(data):
         else:
             st.warning("⚠️ No image found.")
 
+        # Extract site_no
         site_no = item["page_url"].split("-")[-1]
         value = live_stages.get(site_no)
 
-        # Display site-specific status
-        if site_no == BROOKVILLE_SITE_NO:
-            status = get_lake_status(value)
-            st.maif value is not None:
-    st.markdown(f"**Lake Elevation:** {value:.2f} ft – {status}")
-else:
-    st.markdown(f"**Lake Elevation:** ❔ No data – {status}")
-rkdown(f"**Lake Elevation:** {value:.2f} ft – {status}")
-        else:
-            status = get_river_safety_status(site_no, value)
-            st.markdown(f"**River Status:** {status}")
-
-        # Show operational/flood/lake metadata
         cfg = station_limits.get(site_no)
+
+        # Show status
+        if site_no == BROOKVILLE_SITE_NO:
+            lake_status = get_lake_status(value)
+            if value is not None:
+                st.markdown(f"**Lake Elevation:** {value:.2f} ft – {lake_status}")
+            else:
+                st.markdown(f"**Lake Elevation:** ❔ No data – {lake_status}")
+        else:
+            river_status = get_river_safety_status(site_no, value)
+            st.markdown(f"**River Status:** {river_status}")
+
+        # Description/caption
         if cfg:
             if cfg["type"] == "operational":
                 st.caption(f"Operational limits: {cfg['min']} ft (min), {cfg['max']} ft (max).")
@@ -167,7 +160,7 @@ rkdown(f"**Lake Elevation:** {value:.2f} ft – {status}")
             elif cfg["type"] == "lake":
                 st.caption(cfg.get("note", "Lake level shown in ft."))
 
-        # Weather next to Brookville Lake
+        # Weather Forecast next to Brookville Lake
         if site_no == BROOKVILLE_SITE_NO and not weather_displayed:
             weather_displayed = True
             st.markdown("---")

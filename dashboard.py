@@ -20,13 +20,13 @@ data = fetch_site_graphs()
 updated_time = datetime.now(eastern)
 st.caption(f"🔄 Last updated: {updated_time.strftime('%Y-%m-%d %I:%M %p %Z')}")
 
-# Mock flow/lake level data (replace with real-time USGS data if available)
-mock_flows = {
-    "03274650": 450,    # Economy
-    "03276000": 1250,   # East Fork
-    "03275000": 1700,   # Alpine
-    "03276500": 800,    # Brookville River
-    "03275990": 152.3   # Brookville Lake (example lake level in ft)
+# Mock gage height stage values in feet
+mock_stages = {
+    "03274650": 3.85,   # Economy
+    "03276000": 5.12,   # East Fork
+    "03275000": 10.7,   # Alpine
+    "03276500": 12.6,   # Brookville River
+    "03275990": 152.3   # Brookville Lake
 }
 
 # Station-specific limits and flood stages
@@ -114,7 +114,7 @@ for i, item in enumerate(data):
 
         # Extract site_no
         site_no = item["page_url"].split("-")[-1]
-        value = mock_flows.get(site_no)
+        value = mock_stages.get(site_no)
 
         # Show lake or river status
         if site_no == BROOKVILLE_SITE_NO:

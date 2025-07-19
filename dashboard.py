@@ -188,4 +188,4 @@ for i, item in enumerate(data):
                     res = requests.get(
                         f"https://api.weatherapi.com/v1/forecast.json?key={api_key}&q=47012&days=3&aqi=no&alerts=no"
                     )
-                    res.raiseres.raise_for_status()
+                    res.raise_for_status()

@@ -20,14 +20,27 @@ data = fetch_site_graphs()
 updated_time = datetime.now(eastern)
 st.caption(f"🔄 Last updated: {updated_time.strftime('%Y-%m-%d %I:%M %p %Z')}")
 
-# Mock gage height stage values in feet
-mock_stages = {
-    "03274650": 3.85,   # Economy
-    "03276000": 5.12,   # East Fork
-    "03275000": 10.7,   # Alpine
-    "03276500": 12.6,   # Brookville River
-    "03275990": 152.3   # Brookville Lake
-}
+# Fetch real-time gage height (ft) from USGS API
+def fetch_live_stages(site_ids):
+    params = {
+        "format": "json",
+        "sites": ",".join(site_ids),
+        "parameterCd": "00065",  # Gage height (ft)
+        "siteStatus": "all"
+    }
+    url = "https://waterservices.usgs.gov/nwis/iv/"
+    resp = requests.get(url, params=params, timeout=10)
+    resp.raise_for_status()
+    data = resp.json()
+    stages = {}
+    for site in data.get("value", {}).get("timeSeries", []):
+        site_no = site["sourceInfo"]["siteCode"][0]["value"]
+        vals = site["values"][0]["value"]
+        if vals:
+            stages[site_no] = float(vals[-1]["value"])
+        else:
+            stages[site_no] = None
+    return stages
 
 # Station-specific limits and flood stages
 station_limits = {
@@ -99,6 +112,14 @@ def get_lake_status(level_ft):
     else:
         return f"🟢 Average ({level_ft:.2f} ft)"
 
+# Fetch live values
+site_list = list(station_limits.keys())
+try:
+    live_stages = fetch_live_stages(site_list)
+except requests.RequestException as e:
+    st.error(f"⚠️ Failed to fetch USGS gage heights: {e}")
+    live_stages = {}
+
 # Layout
 cols = st.columns(3)
 weather_displayed = False
@@ -114,7 +135,7 @@ for i, item in enumerate(data):
 
         # Extract site_no
         site_no = item["page_url"].split("-")[-1]
-        value = mock_stages.get(site_no)
+        value = live_stages.get(site_no)
 
         # Show lake or river status
         if site_no == BROOKVILLE_SITE_NO:

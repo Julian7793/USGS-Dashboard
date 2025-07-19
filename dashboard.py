@@ -147,7 +147,11 @@ for i, item in enumerate(data):
         # Display site-specific status
         if site_no == BROOKVILLE_SITE_NO:
             status = get_lake_status(value)
-            st.markdown(f"**Lake Elevation:** {value:.2f} ft – {status}")
+            st.maif value is not None:
+    st.markdown(f"**Lake Elevation:** {value:.2f} ft – {status}")
+else:
+    st.markdown(f"**Lake Elevation:** ❔ No data – {status}")
+rkdown(f"**Lake Elevation:** {value:.2f} ft – {status}")
         else:
             status = get_river_safety_status(site_no, value)
             st.markdown(f"**River Status:** {status}")

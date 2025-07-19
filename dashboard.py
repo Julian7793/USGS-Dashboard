@@ -2,13 +2,13 @@ import streamlit as st
 from scraper import fetch_site_graphs
 from datetime import datetime
 import pytz
-import requests
 from streamlit_autorefresh import st_autorefresh
+import requests
 
 # Constants
 REFRESH_INTERVAL = 30
 eastern = pytz.timezone("US/Eastern")
-BROOKVILLE_AVG_LEVEL = 748  # Target lake level
+BROOKVILLE_AVG_LEVEL = 748  # updated to realistic Lake Status
 BROOKVILLE_SITE_NO = "03275990"
 
 # Configure Streamlit
@@ -20,12 +20,12 @@ data = fetch_site_graphs()
 updated_time = datetime.now(eastern)
 st.caption(f"🔄 Last updated: {updated_time.strftime('%Y-%m-%d %I:%M %p %Z')}")
 
-# Fetch real-time gage height (ft) and timestamp
+# Fetch real-time gage height (ft) from USGS API
 def fetch_live_stages(site_ids):
     params = {
         "format": "json",
         "sites": ",".join(site_ids),
-        "parameterCd": "00065",
+        "parameterCd": "00065",  # Gage height (ft)
         "siteStatus": "all"
     }
     url = "https://waterservices.usgs.gov/nwis/iv/"
@@ -37,14 +37,12 @@ def fetch_live_stages(site_ids):
         site_no = site["sourceInfo"]["siteCode"][0]["value"]
         vals = site["values"][0]["value"]
         if vals:
-            value = float(vals[-1]["value"])
-            timestamp = vals[-1]["dateTime"]
-            stages[site_no] = {"value": value, "timestamp": timestamp}
+            stages[site_no] = float(vals[-1]["value"])
         else:
-            stages[site_no] = {"value": None, "timestamp": None}
+            stages[site_no] = None
     return stages
 
-# Site limits and config
+# Station-specific limits and flood stages
 station_limits = {
     "03274650": {
         "name": "Whitewater River Near Economy, IN",
@@ -79,7 +77,7 @@ station_limits = {
     }
 }
 
-# Status evaluation
+# River Safety
 def get_river_safety_status(site_no, value):
     cfg = station_limits.get(site_no)
     if value is None or cfg is None:
@@ -101,6 +99,7 @@ def get_river_safety_status(site_no, value):
 
     return "🟢 Normal"
 
+# Lake Status
 def get_lake_status(level_ft):
     if level_ft is None:
         return "❔ Unknown"
@@ -113,7 +112,7 @@ def get_lake_status(level_ft):
     else:
         return f"🟢 Normal Level ({level_ft:.2f} ft)"
 
-# Fetch data
+# Fetch live stage values
 site_list = list(station_limits.keys())
 try:
     live_stages = fetch_live_stages(site_list)
@@ -134,24 +133,24 @@ for i, item in enumerate(data):
         else:
             st.warning("⚠️ No image found.")
 
+        # Extract site_no
         site_no = item["page_url"].split("-")[-1]
-        entry = live_stages.get(site_no, {})
-        value = entry.get("value")
-        timestamp = entry.get("timestamp")
+        value = live_stages.get(site_no)
+
         cfg = station_limits.get(site_no)
 
+        # Show status
         if site_no == BROOKVILLE_SITE_NO:
             lake_status = get_lake_status(value)
             if value is not None:
-                ts_local = datetime.fromisoformat(timestamp).astimezone(eastern)
-                st.markdown(f"**Lake Elevation:** {value:.2f} ft – {lake_status}")
-                st.caption(f"Last reading: {ts_local.strftime('%Y-%m-%d %I:%M %p %Z')}")
+                st.markdown(f"**Lake Status:** {value:.2f} ft – {lake_status}")
             else:
-                st.markdown(f"**Lake Elevation:** ❔ No data – {lake_status}")
+                st.markdown(f"**Lake Status:** ❔ No data – {lake_status}")
         else:
             river_status = get_river_safety_status(site_no, value)
             st.markdown(f"**River Status:** {river_status}")
 
+        # Description/caption
         if cfg:
             if cfg["type"] == "operational":
                 st.caption(f"Operational limits: {cfg['min']} ft (min), {cfg['max']} ft (max).")
@@ -161,7 +160,7 @@ for i, item in enumerate(data):
             elif cfg["type"] == "lake":
                 st.caption(cfg.get("note", "Lake level shown in ft."))
 
-        # Weather for Brookville Lake
+        # Weather Forecast next to Brookville Lake
         if site_no == BROOKVILLE_SITE_NO and not weather_displayed:
             weather_displayed = True
             st.markdown("---")

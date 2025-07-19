@@ -29,23 +29,62 @@ mock_flows = {
     "03275990": 152.3   # Brookville Lake (example lake level in ft)
 }
 
-# River Safety Status
-def get_river_safety_status(site_no, flow_cfs):
-    thresholds = {
-        "03274650": (500, 1500),
-        "03276000": (600, 1600),
-        "03275000": (550, 1550),
-        "03276500": (700, 1700),
+# Station-specific limits and flood stages
+station_limits = {
+    "03274650": {
+        "name": "Whitewater River Near Economy, IN",
+        "type": "operational",
+        "min": 2.26,
+        "max": 13.98,
+        "min_msg": "Lower intake out of water",
+        "max_msg": "Float hitting bottom of gage shelf"
+    },
+    "03276000": {
+        "name": "East Fork Whitewater River at Brookville, IN",
+        "type": "operational",
+        "min": 0.69,
+        "max": 25.72,
+        "min_msg": "Lower intake out of water",
+        "max_msg": "Float hitting bottom of gage shelf"
+    },
+    "03275000": {
+        "name": "Whitewater River Near Alpine, IN",
+        "type": "flood",
+        "stages": {"Action": 10, "Minor": 14, "Moderate": 17, "Major": 19}
+    },
+    "03276500": {
+        "name": "Whitewater River at Brookville, IN",
+        "type": "flood",
+        "stages": {"Action": 14, "Minor": 20, "Moderate": 23, "Major": 29}
+    },
+    "03275990": {
+        "name": "Brookville Lake at Brookville, IN",
+        "type": "lake",
+        "note": "Lake or reservoir water surface elevation above NGVD 1929, ft"
     }
-    low, high = thresholds.get(site_no, (500, 1500))
-    if flow_cfs is None:
+}
+
+# River or Flood Safety Status
+def get_river_safety_status(site_no, value):
+    cfg = station_limits.get(site_no)
+    if value is None or cfg is None:
         return "❔ Unknown"
-    elif flow_cfs > high:
-        return "🔴 Unsafe"
-    elif flow_cfs > low:
-        return "🟡 Caution"
-    else:
-        return "🟢 Safe"
+
+    if cfg["type"] == "operational":
+        if value < cfg["min"]:
+            return f"🔽 Too Low – {cfg['min_msg']} ({value:.2f} ft)"
+        elif value > cfg["max"]:
+            return f"🔼 Too High – {cfg['max_msg']} ({value:.2f} ft)"
+        else:
+            return f"🟢 Normal Operating Range ({value:.2f} ft)"
+
+    elif cfg["type"] == "flood":
+        for stage, threshold in reversed(sorted(cfg["stages"].items(), key=lambda x: x[1])):
+            if value >= threshold:
+                return f"⚠️ {stage} Flood Stage Reached ({value:.2f} ft)"
+        return f"🟢 Below Flood Stage ({value:.2f} ft)"
+
+    return "🟢 Normal"
 
 # Lake Level Status for Brookville Lake
 def get_lake_status(level_ft):
@@ -54,11 +93,11 @@ def get_lake_status(level_ft):
     lower_bound = BROOKVILLE_AVG_LEVEL * 0.90
     upper_bound = BROOKVILLE_AVG_LEVEL * 1.10
     if level_ft < lower_bound:
-        return "🔽 Below Average"
+        return f"🔽 Below Average ({level_ft:.2f} ft)"
     elif level_ft > upper_bound:
-        return "🔼 Above Average"
+        return f"🔼 Above Average ({level_ft:.2f} ft)"
     else:
-        return "🟢 Average"
+        return f"🟢 Average ({level_ft:.2f} ft)"
 
 # Layout
 cols = st.columns(3)
@@ -84,6 +123,19 @@ for i, item in enumerate(data):
         else:
             river_status = get_river_safety_status(site_no, value)
             st.markdown(f"**River Status:** {river_status}")
+
+        # Add description/caption
+        cfg = station_limits.get(site_no)
+        if cfg:
+            if cfg["type"] == "operational":
+                st.caption(
+                    f"Operational limits: {cfg['min']} ft (min), {cfg['max']} ft (max)."
+                )
+            elif cfg["type"] == "flood":
+                stages = ", ".join(f"{stage} at {val} ft" for stage, val in cfg["stages"].items())
+                st.caption(f"Flood stages – {stages}.")
+            elif cfg["type"] == "lake":
+                st.caption(cfg.get("note", "Lake level shown in ft."))
 
         # Inject weather block next to Brookville Lake
         if site_no == BROOKVILLE_SITE_NO and not weather_displayed:

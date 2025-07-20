@@ -5,8 +5,21 @@ import pytz
 from streamlit_autorefresh import st_autorefresh
 import requests
 
+# --- REMOVE TOP PADDING VIA CSS ---
+st.markdown(
+    """
+    <style>
+      /* Remove default top padding so content starts at very top */
+      .block-container {
+        padding-top: 0rem;
+      }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
 # Constants
-REFRESH_INTERVAL = 300
+REFRESH_INTERVAL = 30
 eastern = pytz.timezone("US/Eastern")
 BROOKVILLE_AVG_LEVEL = 748
 BROOKVILLE_SITE_NO = "03275990"
@@ -15,6 +28,7 @@ BROOKVILLE_SITE_NO = "03275990"
 st.set_page_config(page_title="USGS Water Graphs", layout="wide")
 st_autorefresh(interval=REFRESH_INTERVAL * 1000, limit=None, key="autorefresh")
 
+# --- PAGE TITLE & LAST UPDATED ---
 st.title("📈 USGS Site Graphs (Live)")
 data = fetch_site_graphs()
 updated_time = datetime.now(eastern)
@@ -33,7 +47,6 @@ else:
         )
         res.raise_for_status()
         weather = res.json()
-        # Smaller header for forecast
         st.markdown('<h3 style="font-size:1.2rem;">7‑Day Weather Forecast (47012)</h3>', unsafe_allow_html=True)
 
         days = weather["forecast"]["forecastday"]
@@ -46,7 +59,7 @@ else:
                 hi, lo = day["day"]["maxtemp_f"], day["day"]["mintemp_f"]
                 precip = day["day"]["totalprecip_in"]
                 st.markdown(f"**{date}**")
-                st.image(f"https:{icon}", width=50)
+                st.image(f"https:{icon}", width=30)
                 st.markdown(cond)
                 st.markdown(f"🌡️ {lo}°F – {hi}°F")
                 st.markdown(f"💧 Precip: {precip:.2f} in")

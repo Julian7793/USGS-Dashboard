@@ -15,18 +15,6 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-st.markdown(
-    """
-    <style>
-      /* target the main page title (h1) and shrink it */
-      h1 {
-        font-size: 1.1rem !important;
-      }
-    </style>
-    """,
-    unsafe_allow_html=True,
-)
-
 # Constants
 REFRESH_INTERVAL = 300
 eastern = pytz.timezone("US/Eastern")

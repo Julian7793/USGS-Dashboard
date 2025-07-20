@@ -6,7 +6,7 @@ from streamlit_autorefresh import st_autorefresh
 import requests
 
 # Constants
-REFRESH_INTERVAL = 30
+REFRESH_INTERVAL = 300
 eastern = pytz.timezone("US/Eastern")
 BROOKVILLE_AVG_LEVEL = 748
 BROOKVILLE_SITE_NO = "03275990"

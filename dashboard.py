@@ -9,10 +9,7 @@ import requests
 st.markdown(
     """
     <style>
-      /* Remove default top padding so content starts at very top */
-      .block-container {
-        padding-top: 0rem;
-      }
+      .block-container { padding-top: 0rem; }
     </style>
     """,
     unsafe_allow_html=True,
@@ -28,7 +25,7 @@ BROOKVILLE_SITE_NO = "03275990"
 st.set_page_config(page_title="USGS Water Graphs", layout="wide")
 st_autorefresh(interval=REFRESH_INTERVAL * 1000, limit=None, key="autorefresh")
 
-# --- PAGE TITLE & LAST UPDATED ---
+# Page title & update time
 st.title("📈 USGS Site Graphs (Live)")
 data = fetch_site_graphs()
 updated_time = datetime.now(eastern)
@@ -73,6 +70,7 @@ def fetch_live_stages(site_ids):
     lake_site = BROOKVILLE_SITE_NO
     river_sites = [sid for sid in site_ids if sid != lake_site]
     stages = {}
+
     # Rivers (gage height 00065)
     if river_sites:
         try:
@@ -90,6 +88,7 @@ def fetch_live_stages(site_ids):
         except requests.RequestException:
             for sid in river_sites:
                 stages[sid] = None
+
     # Lake (elevation 62614)
     try:
         resp = requests.get(
@@ -105,6 +104,7 @@ def fetch_live_stages(site_ids):
             stages[sid] = float(vals[-1]["value"]) if vals else None
     except requests.RequestException:
         stages[lake_site] = None
+
     return stages
 
 # Station config
@@ -120,20 +120,27 @@ station_limits = {
 
 def get_river_safety_status(sid, val):
     cfg = station_limits[sid]
-    if val is None: return "❔ Unknown"
-    if cfg["type"]=="operational":
-        if val<cfg["min"]: return f"🔽 Too Low – {cfg['min_msg']} ({val:.2f} ft)"
-        if val>cfg["max"]: return f"🔼 Too High – {cfg['max_msg']} ({val:.2f} ft)"
+    if val is None:
+        return "❔ Unknown"
+    if cfg["type"] == "operational":
+        if val < cfg["min"]:
+            return f"🔽 Too Low – {cfg['min_msg']} ({val:.2f} ft)"
+        if val > cfg["max"]:
+            return f"🔼 Too High – {cfg['max_msg']} ({val:.2f} ft)"
         return f"🟢 Normal Operating Range ({val:.2f} ft)"
-    for stage,thr in sorted(cfg["stages"].items(), key=lambda x:x[1], reverse=True):
-        if val>=thr: return f"⚠️ {stage} Flood Stage Reached ({val:.2f} ft)"
+    for stage, thr in sorted(cfg["stages"].items(), key=lambda x: x[1], reverse=True):
+        if val >= thr:
+            return f"⚠️ {stage} Flood Stage Reached ({val:.2f} ft)"
     return f"🟢 Below Flood Stage ({val:.2f} ft)"
 
 def get_lake_status(lv):
-    if lv is None: return "❔ Unknown"
-    lb, ub = BROOKVILLE_AVG_LEVEL*0.98, BROOKVILLE_AVG_LEVEL*1.02
-    if lv<lb: return f"🔽 Below Normal ({lv:.2f} ft)"
-    if lv>ub: return f"🔼 Above Normal ({lv:.2f} ft)"
+    if lv is None:
+        return "❔ Unknown"
+    lb, ub = BROOKVILLE_AVG_LEVEL * 0.98, BROOKVILLE_AVG_LEVEL * 1.02
+    if lv < lb:
+        return f"🔽 Below Normal ({lv:.2f} ft)"
+    if lv > ub:
+        return f"🔼 Above Normal ({lv:.2f} ft)"
     return f"🟢 Normal Level ({lv:.2f} ft)"
 
 # Fetch USGS data
@@ -147,7 +154,11 @@ except Exception as e:
 cols = st.columns(3)
 for idx, item in enumerate(data):
     with cols[idx % 3]:
-        st.markdown(f"#### [{item['title']}]({item['page_url']})", unsafe_allow_html=True)
+        # Strip trailing " - #######" from title
+        full_title = item["title"]
+        display_title = full_title.split(" - ")[0]
+        st.markdown(f"#### [{display_title}]({item['page_url']})", unsafe_allow_html=True)
+
         if item["image_url"]:
             st.image(item["image_url"], use_container_width=True)
         else:
@@ -155,6 +166,7 @@ for idx, item in enumerate(data):
 
         sid = item["page_url"].split("-")[-1]
         val = live_stages.get(sid)
+
         if sid == BROOKVILLE_SITE_NO:
             status = get_lake_status(val)
             if val is not None:
@@ -168,6 +180,6 @@ for idx, item in enumerate(data):
         if cfg["type"] == "operational":
             st.caption(f"Operational limits: {cfg['min']} ft (min), {cfg['max']} ft (max).")
         elif cfg["type"] == "flood":
-            st.caption(", ".join(f"{k} at {v} ft" for k,v in cfg["stages"].items()))
+            st.caption(", ".join(f"{k} at {v} ft" for k, v in cfg["stages"].items()))
         else:
             st.caption(cfg["note"])

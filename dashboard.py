@@ -19,7 +19,7 @@ st.markdown(
 )
 
 # Constants
-REFRESH_INTERVAL = 30
+REFRESH_INTERVAL = 300
 eastern = pytz.timezone("US/Eastern")
 BROOKVILLE_AVG_LEVEL = 748
 BROOKVILLE_SITE_NO = "03275990"
@@ -59,7 +59,7 @@ else:
                 hi, lo = day["day"]["maxtemp_f"], day["day"]["mintemp_f"]
                 precip = day["day"]["totalprecip_in"]
                 st.markdown(f"**{date}**")
-                st.image(f"https:{icon}", width=30)
+                st.image(f"https:{icon}", width=50)
                 st.markdown(cond)
                 st.markdown(f"🌡️ {lo}°F – {hi}°F")
                 st.markdown(f"💧 Precip: {precip:.2f} in")

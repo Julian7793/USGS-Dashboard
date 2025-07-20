@@ -20,101 +20,86 @@ data = fetch_site_graphs()
 updated_time = datetime.now(eastern)
 st.caption(f"🔄 Last updated: {updated_time.strftime('%Y-%m-%d %I:%M %p %Z')}")
 
-# --- WEATHER FORECAST AT THE TOP ---
+# --- 7‑Day WEATHER FORECAST AT THE TOP ---
 api_key = st.secrets.get("WEATHERAPI_KEY", "")
 if not api_key:
     st.error("❌ WEATHERAPI_KEY missing in Streamlit secrets.")
 else:
     try:
         res = requests.get(
-            f"https://api.weatherapi.com/v1/forecast.json"
-            f"?key={api_key}&q=47012&days=3&aqi=no&alerts=no",
+            "https://api.weatherapi.com/v1/forecast.json",
+            params={"key": api_key, "q": "47012", "days": 7, "aqi": "no", "alerts": "no"},
             timeout=10
         )
         res.raise_for_status()
         weather = res.json()
-        st.markdown("## 🌤️ 3‑Day Weather Forecast (47012)")
-
-        # Create three horizontal columns for the forecast days
+        st.markdown("## 🌤️ 7‑Day Weather Forecast (47012)")
         days = weather["forecast"]["forecastday"]
         cols = st.columns(len(days))
         for col, day in zip(cols, days):
             with col:
                 date = datetime.strptime(day["date"], "%Y-%m-%d").strftime("%a, %b %d")
                 icon = day["day"]["condition"]["icon"]
-                condition = day["day"]["condition"]["text"]
-                high = day["day"]["maxtemp_f"]
-                low = day["day"]["mintemp_f"]
+                cond = day["day"]["condition"]["text"]
+                hi, lo = day["day"]["maxtemp_f"], day["day"]["mintemp_f"]
                 st.markdown(f"**{date}**")
-                st.image(f"https:{icon}", width=60)
-                st.markdown(f"{condition}")
-                st.markdown(f"🌡️ {low}°F – {high}°F")
+                st.image(f"https:{icon}", width=30)
+                st.markdown(cond)
+                st.markdown(f"🌡️ {lo}°F – {hi}°F")
     except requests.RequestException as e:
         st.error(f"❌ Weather fetch error: {e}")
 
 st.markdown("---")
-
 
 # --- USGS STAGES FETCHER ---
 def fetch_live_stages(site_ids):
     lake_site = BROOKVILLE_SITE_NO
     river_sites = [sid for sid in site_ids if sid != lake_site]
     stages = {}
-
-    # Rivers (gage height, code 00065)
+    # Rivers (gage height 00065)
     if river_sites:
-        params = {
-            "format": "json",
-            "sites": ",".join(river_sites),
-            "parameterCd": "00065",
-            "siteStatus": "all"
-        }
         try:
-            resp = requests.get("https://waterservices.usgs.gov/nwis/iv/", params=params, timeout=10)
+            resp = requests.get(
+                "https://waterservices.usgs.gov/nwis/iv/",
+                params={"format":"json","sites":",".join(river_sites),"parameterCd":"00065","siteStatus":"all"},
+                timeout=10
+            )
             resp.raise_for_status()
             data = resp.json()
-            for site in data["value"]["timeSeries"]:
-                sid = site["sourceInfo"]["siteCode"][0]["value"]
-                vals = site["values"][0]["value"]
+            for ts in data["value"]["timeSeries"]:
+                sid = ts["sourceInfo"]["siteCode"][0]["value"]
+                vals = ts["values"][0]["value"]
                 stages[sid] = float(vals[-1]["value"]) if vals else None
         except requests.RequestException:
             for sid in river_sites:
                 stages[sid] = None
-
-    # Brookville Lake (elevation, code 62614)
+    # Lake (elevation 62614)
     try:
         resp = requests.get(
             "https://waterservices.usgs.gov/nwis/iv/",
-            params={"format":"json", "sites":lake_site, "parameterCd":"62614", "siteStatus":"all"},
+            params={"format":"json","sites":lake_site,"parameterCd":"62614","siteStatus":"all"},
             timeout=10
         )
         resp.raise_for_status()
         data = resp.json()
-        for site in data["value"]["timeSeries"]:
-            sid = site["sourceInfo"]["siteCode"][0]["value"]
-            vals = site["values"][0]["value"]
+        for ts in data["value"]["timeSeries"]:
+            sid = ts["sourceInfo"]["siteCode"][0]["value"]
+            vals = ts["values"][0]["value"]
             stages[sid] = float(vals[-1]["value"]) if vals else None
     except requests.RequestException:
         stages[lake_site] = None
-
     return stages
-
 
 # Station config
 station_limits = {
-    "03274650": {
-        "type":"operational","min":2.26,"max":13.98,
-        "min_msg":"Lower intake out of water","max_msg":"Float hitting bottom of gage shelf"
-    },
-    "03276000": {
-        "type":"operational","min":0.69,"max":25.72,
-        "min_msg":"Lower intake out of water","max_msg":"Float hitting bottom of gage shelf"
-    },
+    "03274650": {"type":"operational","min":2.26,"max":13.98,
+                 "min_msg":"Lower intake out of water","max_msg":"Float hitting bottom of gage shelf"},
+    "03276000": {"type":"operational","min":0.69,"max":25.72,
+                 "min_msg":"Lower intake out of water","max_msg":"Float hitting bottom of gage shelf"},
     "03275000": {"type":"flood","stages":{"Action":10,"Minor":14,"Moderate":17,"Major":19}},
     "03276500": {"type":"flood","stages":{"Action":14,"Minor":20,"Moderate":23,"Major":29}},
     "03275990": {"type":"lake","note":"Lake or reservoir water surface elevation above NGVD 1929, ft"}
 }
-
 
 def get_river_safety_status(sid, val):
     cfg = station_limits[sid]
@@ -123,19 +108,16 @@ def get_river_safety_status(sid, val):
         if val<cfg["min"]: return f"🔽 Too Low – {cfg['min_msg']} ({val:.2f} ft)"
         if val>cfg["max"]: return f"🔼 Too High – {cfg['max_msg']} ({val:.2f} ft)"
         return f"🟢 Normal Operating Range ({val:.2f} ft)"
-    # flood
     for stage,thr in sorted(cfg["stages"].items(), key=lambda x:x[1], reverse=True):
         if val>=thr: return f"⚠️ {stage} Flood Stage Reached ({val:.2f} ft)"
     return f"🟢 Below Flood Stage ({val:.2f} ft)"
 
-
-def get_lake_status(level_ft):
-    if level_ft is None: return "❔ Unknown"
+def get_lake_status(lv):
+    if lv is None: return "❔ Unknown"
     lb, ub = BROOKVILLE_AVG_LEVEL*0.98, BROOKVILLE_AVG_LEVEL*1.02
-    if level_ft<lb: return f"🔽 Below Normal ({level_ft:.2f} ft)"
-    if level_ft>ub: return f"🔼 Above Normal ({level_ft:.2f} ft)"
-    return f"🟢 Normal Level ({level_ft:.2f} ft)"
-
+    if lv<lb: return f"🔽 Below Normal ({lv:.2f} ft)"
+    if lv>ub: return f"🔼 Above Normal ({lv:.2f} ft)"
+    return f"🟢 Normal Level ({lv:.2f} ft)"
 
 # Fetch USGS data
 try:
@@ -144,7 +126,7 @@ except Exception as e:
     st.error(f"⚠️ Failed to fetch USGS data: {e}")
     live_stages = {}
 
-# Plot each site
+# Display each site
 cols = st.columns(3)
 for idx, item in enumerate(data):
     with cols[idx % 3]:
@@ -156,20 +138,19 @@ for idx, item in enumerate(data):
 
         sid = item["page_url"].split("-")[-1]
         val = live_stages.get(sid)
-
-        if sid==BROOKVILLE_SITE_NO:
+        if sid == BROOKVILLE_SITE_NO:
             status = get_lake_status(val)
             if val is not None:
                 st.markdown(f"**Lake Status:** {val:.2f} ft – {status}")
             else:
                 st.markdown(f"**Lake Status:** ❔ No data – {status}")
         else:
-            st.markdown(f"**River Status:** {get_river_safety_status(sid,val)}")
+            st.markdown(f"**River Status:** {get_river_safety_status(sid, val)}")
 
         cfg = station_limits[sid]
-        if cfg["type"]=="operational":
+        if cfg["type"] == "operational":
             st.caption(f"Operational limits: {cfg['min']} ft (min), {cfg['max']} ft (max).")
-        elif cfg["type"]=="flood":
+        elif cfg["type"] == "flood":
             st.caption(", ".join(f"{k} at {v} ft" for k,v in cfg["stages"].items()))
         else:
             st.caption(cfg["note"])

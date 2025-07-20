@@ -43,7 +43,7 @@ else:
                 cond = day["day"]["condition"]["text"]
                 hi, lo = day["day"]["maxtemp_f"], day["day"]["mintemp_f"]
                 st.markdown(f"**{date}**")
-                st.image(f"https:{icon}", width=30)
+                st.image(f"https:{icon}", width=60)
                 st.markdown(cond)
                 st.markdown(f"🌡️ {lo}°F – {hi}°F")
     except requests.RequestException as e:

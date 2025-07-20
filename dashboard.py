@@ -20,7 +20,7 @@ st.markdown(
     <style>
       /* target the main page title (h1) and shrink it */
       h1 {
-        font-size: 1.8rem !important;
+        font-size: 1.1rem !important;
       }
     </style>
     """,

@@ -46,7 +46,7 @@ else:
                 hi, lo = day["day"]["maxtemp_f"], day["day"]["mintemp_f"]
                 precip = day["day"]["totalprecip_in"]
                 st.markdown(f"**{date}**")
-                st.image(f"https:{icon}", width=30)
+                st.image(f"https:{icon}", width=50)
                 st.markdown(cond)
                 st.markdown(f"🌡️ {lo}°F – {hi}°F")
                 st.markdown(f"💧 Precip: {precip:.2f} in")

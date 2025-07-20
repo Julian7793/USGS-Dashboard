@@ -154,17 +154,18 @@ except Exception as e:
 cols = st.columns(3)
 for idx, item in enumerate(data):
     with cols[idx % 3]:
-        # Title and image as before
+        # Strip trailing " - 032xxxxx" from title
         full_title = item["title"]
         display_title = full_title.split(" - ")[0]
         st.markdown(f"#### [{display_title}]({item['page_url']})", unsafe_allow_html=True)
 
+        # Show graph
         if item["image_url"]:
             st.image(item["image_url"], use_container_width=True)
         else:
             st.warning("⚠️ No image found.")
 
-        # Status
+        # Status line
         sid = item["page_url"].split("-")[-1]
         val = live_stages.get(sid)
         if sid == BROOKVILLE_SITE_NO:
@@ -177,16 +178,12 @@ for idx, item in enumerate(data):
             river_status = get_river_safety_status(sid, val)
             st.markdown(f"**River Status:** {river_status}")
 
-        # ——— Moved RIGHT HERE: sub‑info caption immediately after status ———
+        # Sub-info moved here, immediately after status
         cfg = station_limits[sid]
         if cfg["type"] == "operational":
             st.caption(f"Operational limits: {cfg['min']} ft (min), {cfg['max']} ft (max).")
         elif cfg["type"] == "flood":
             stages = ", ".join(f"{k} at {v} ft" for k, v in cfg["stages"].items())
             st.caption(f"Flood stages – {stages}.")
-        else:  # lake
+        else:
             st.caption(cfg["note"])
-
-        # (No more caption at the bottom)
-
-

@@ -160,7 +160,7 @@ for idx, item in enumerate(data):
         st.markdown(f"#### [{display_title}]({item['page_url']})", unsafe_allow_html=True)
 
         if item["image_url"]:
-            st.image(item["image_url"], use_container_width=True)
+            st.image(item["image_url"], width=350)
         else:
             st.warning("⚠️ No image found.")
 

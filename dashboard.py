@@ -26,7 +26,7 @@ st.set_page_config(page_title="USGS Water Graphs", layout="wide")
 st_autorefresh(interval=REFRESH_INTERVAL * 1000, limit=None, key="autorefresh")
 
 # Page title & update time
-st.title("📈 USGS Site Graphs (Live)")
+st.header("📈 USGS Site Graphs (Live)")
 data = fetch_site_graphs()
 updated_time = datetime.now(eastern)
 st.caption(f"🔄 Last updated: {updated_time.strftime('%Y-%m-%d %I:%M %p %Z')}")

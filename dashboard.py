@@ -33,7 +33,9 @@ else:
         )
         res.raise_for_status()
         weather = res.json()
-        st.markdown("## 🌤️ 7‑Day Weather Forecast (47012)")
+        # Smaller header for forecast
+        st.markdown('<h3 style="font-size:1.2rem;">7‑Day Weather Forecast (47012)</h3>', unsafe_allow_html=True)
+
         days = weather["forecast"]["forecastday"]
         cols = st.columns(len(days))
         for col, day in zip(cols, days):
@@ -42,10 +44,12 @@ else:
                 icon = day["day"]["condition"]["icon"]
                 cond = day["day"]["condition"]["text"]
                 hi, lo = day["day"]["maxtemp_f"], day["day"]["mintemp_f"]
+                precip = day["day"]["totalprecip_in"]
                 st.markdown(f"**{date}**")
-                st.image(f"https:{icon}", width=60)
+                st.image(f"https:{icon}", width=30)
                 st.markdown(cond)
                 st.markdown(f"🌡️ {lo}°F – {hi}°F")
+                st.markdown(f"💧 Precip: {precip:.2f} in")
     except requests.RequestException as e:
         st.error(f"❌ Weather fetch error: {e}")
 

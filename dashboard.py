@@ -6,32 +6,29 @@ from streamlit_autorefresh import st_autorefresh
 import requests
 
 # --- REMOVE TOP PADDING VIA CSS ---
-st.markdown(
-    """
-    <style>
-      .block-container { padding-top: 0rem; }
-    </style>
-    """,
-    unsafe_allow_html=True,
-)
+st.markdown("""
+<style>
+  .block-container { padding-top: 0rem; }
+</style>
+""", unsafe_allow_html=True)
 
 # Constants
 REFRESH_INTERVAL = 300
 eastern = pytz.timezone("US/Eastern")
 BROOKVILLE_AVG_LEVEL = 748
 BROOKVILLE_SITE_NO = "03275990"
+EXTRA_SITE = "03274615"  # Newly added site
 
 # Configure Streamlit
 st.set_page_config(page_title="USGS Water Graphs", layout="wide")
 st_autorefresh(interval=REFRESH_INTERVAL * 1000, limit=None, key="autorefresh")
 
-# Page title & update time
+# Header
 st.header("📈 USGS Site Graphs (Live)")
-data = fetch_site_graphs()
 updated_time = datetime.now(eastern)
 st.caption(f"🔄 Last updated: {updated_time.strftime('%Y-%m-%d %I:%M %p %Z')}")
 
-# --- 7‑Day WEATHER FORECAST AT THE TOP ---
+# --- 7-Day Weather Forecast ---
 api_key = st.secrets.get("WEATHERAPI_KEY", "")
 if not api_key:
     st.error("❌ WEATHERAPI_KEY missing in Streamlit secrets.")
@@ -45,7 +42,6 @@ else:
         res.raise_for_status()
         weather = res.json()
         st.markdown('<h3 style="font-size:1.2rem;">7‑Day Weather Forecast (47012)</h3>', unsafe_allow_html=True)
-
         days = weather["forecast"]["forecastday"]
         cols = st.columns(len(days))
         for col, day in zip(cols, days):
@@ -71,12 +67,11 @@ def fetch_live_stages(site_ids):
     river_sites = [sid for sid in site_ids if sid != lake_site]
     stages = {}
 
-    # Rivers (gage height 00065)
     if river_sites:
         try:
             resp = requests.get(
                 "https://waterservices.usgs.gov/nwis/iv/",
-                params={"format":"json","sites":",".join(river_sites),"parameterCd":"00065","siteStatus":"all"},
+                params={"format": "json", "sites": ",".join(river_sites), "parameterCd": "00065", "siteStatus": "all"},
                 timeout=10
             )
             resp.raise_for_status()
@@ -89,11 +84,10 @@ def fetch_live_stages(site_ids):
             for sid in river_sites:
                 stages[sid] = None
 
-    # Lake (elevation 62614)
     try:
         resp = requests.get(
             "https://waterservices.usgs.gov/nwis/iv/",
-            params={"format":"json","sites":lake_site,"parameterCd":"62614","siteStatus":"all"},
+            params={"format": "json", "sites": lake_site, "parameterCd": "62614", "siteStatus": "all"},
             timeout=10
         )
         resp.raise_for_status()
@@ -107,15 +101,17 @@ def fetch_live_stages(site_ids):
 
     return stages
 
-# Station config
+# --- STATION CONFIGURATION ---
 station_limits = {
-    "03274650": {"type":"operational","min":2.26,"max":13.98,
-                 "min_msg":"Lower intake out of water","max_msg":"Float hitting bottom of gage shelf"},
-    "03276000": {"type":"operational","min":0.69,"max":25.72,
-                 "min_msg":"Lower intake out of water","max_msg":"Float hitting bottom of gage shelf"},
-    "03275000": {"type":"flood","stages":{"Action":10,"Minor":14,"Moderate":17,"Major":19}},
-    "03276500": {"type":"flood","stages":{"Action":14,"Minor":20,"Moderate":23,"Major":29}},
-    "03275990": {"type":"lake","note":"Lake or reservoir water surface elevation above NGVD 1929, ft"}
+    "03274650": {"type": "operational", "min": 2.26, "max": 13.98,
+                 "min_msg": "Lower intake out of water", "max_msg": "Float hitting bottom of gage shelf"},
+    "03276000": {"type": "operational", "min": 0.69, "max": 25.72,
+                 "min_msg": "Lower intake out of water", "max_msg": "Float hitting bottom of gage shelf"},
+    "03275000": {"type": "flood", "stages": {"Action": 10, "Minor": 14, "Moderate": 17, "Major": 19}},
+    "03276500": {"type": "flood", "stages": {"Action": 14, "Minor": 20, "Moderate": 23, "Major": 29}},
+    "03275990": {"type": "lake", "note": "Lake or reservoir water surface elevation above NGVD 1929, ft"},
+    "03274615": {"type": "operational", "min": 3.0, "max": 10.0,
+                 "min_msg": "Below intake threshold", "max_msg": "Potential overflow"}  # Adjust if needed
 }
 
 def get_river_safety_status(sid, val):
@@ -143,47 +139,57 @@ def get_lake_status(lv):
         return f"🔼 Above Normal ({lv:.2f} ft)"
     return f"🟢 Normal Level ({lv:.2f} ft)"
 
-# Fetch USGS data
+# --- FETCH SITE DATA ---
+try:
+    data = fetch_site_graphs()
+except Exception as e:
+    st.error(f"⚠️ Failed to fetch site graphs: {e}")
+    data = []
+
+# --- ADD EXTRA SITE MANUALLY TO DATA LIST ---
+data.append({
+    "title": "East Fork Whitewater River at Liberty, IN - 03274615",
+    "page_url": "https://waterdata.usgs.gov/monitoring-location/USGS-03274615/",
+    "image_url": "https://nwis.waterservices.usgs.gov/nwisweb/graph?agency_cd=USGS&site_no=03274615&parm_cd=00065&period=7"
+})
+
+# --- FETCH LIVE STAGES ---
 try:
     live_stages = fetch_live_stages(list(station_limits.keys()))
 except Exception as e:
     st.error(f"⚠️ Failed to fetch USGS data: {e}")
     live_stages = {}
 
-# Display each site
+# --- DISPLAY GRAPHS IN 3-COLUMN LAYOUT ---
 cols = st.columns(3)
 for idx, item in enumerate(data):
     with cols[idx % 3]:
-        # Strip trailing " - 032xxxxx" from title
         full_title = item["title"]
         display_title = full_title.split(" - ")[0]
         st.markdown(f"#### [{display_title}]({item['page_url']})", unsafe_allow_html=True)
 
-        # Show graph
         if item["image_url"]:
             st.image(item["image_url"], use_container_width=True)
         else:
             st.warning("⚠️ No image found.")
 
-        # Status line
-        sid = item["page_url"].split("-")[-1]
+        sid = item["page_url"].split("/")[-2].split("-")[-1].replace("USGS", "")
         val = live_stages.get(sid)
+
         if sid == BROOKVILLE_SITE_NO:
             status = get_lake_status(val)
-            if val is not None:
-                st.markdown(f"**Lake Status:** {val:.2f} ft – {status}")
-            else:
-                st.markdown(f"**Lake Status:** ❔ No data – {status}")
+            st.markdown(f"**Lake Status:** {val:.2f} ft – {status}" if val else f"**Lake Status:** ❔ No data – {status}")
         else:
             river_status = get_river_safety_status(sid, val)
             st.markdown(f"**River Status:** {river_status}")
 
-        # Sub-info moved here, immediately after status
-        cfg = station_limits[sid]
-        if cfg["type"] == "operational":
-            st.caption(f"Operational limits: {cfg['min']} ft (min), {cfg['max']} ft (max).")
-        elif cfg["type"] == "flood":
-            stages = ", ".join(f"{k} at {v} ft" for k, v in cfg["stages"].items())
-            st.caption(f"Flood stages – {stages}.")
-        else:
-            st.caption(cfg["note"])
+        cfg = station_limits.get(sid)
+        if cfg:
+            if cfg["type"] == "operational":
+                st.caption(f"Operational limits: {cfg['min']} ft (min), {cfg['max']} ft (max).")
+            elif cfg["type"] == "flood":
+                stages = ", ".join(f"{k} at {v} ft" for k, v in cfg["stages"].items())
+                st.caption(f"Flood stages – {stages}.")
+            else:
+                st.caption(cfg["note"])
+                

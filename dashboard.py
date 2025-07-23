@@ -124,7 +124,7 @@ station_limits = {
     "03275000": {"type":"flood","stages":{"Action":10,"Minor":14,"Moderate":17,"Major":19}},
     "03276500": {"type":"flood","stages":{"Action":14,"Minor":20,"Moderate":23,"Major":29}},
     "03275990": {"type":"lake","note":"Lake or reservoir water surface elevation above NGVD 1929, ft"},
-    "03274615": {"type":"flood","stages":{"Action":7,"Minor":9,"Moderate":11,"Major":13}}  # NEW station
+    "03274615": {"type":"flood","stages":{"Action":14,"Minor":16,"Moderate":24,"Major":30}}  # updated values
 }
 
 def get_river_safety_status(sid, val):
@@ -180,24 +180,27 @@ for idx, item in enumerate(data):
         # Status message
         if sid == BROOKVILLE_SITE_NO:
             status = get_lake_status(val)
-            if val is not None:
-                st.markdown(f"**Lake Status:** {val:.2f} ft – {status}")
-            else:
-                st.markdown(f"**Lake Status:** ❔ No data – {status}")
+            st.markdown(f"**Lake Status:** {val:.2f} ft – {status}" if val is not None else f"**Lake Status:** ❔ No data – {status}")
         elif sid in station_limits:
             river_status = get_river_safety_status(sid, val)
             st.markdown(f"**River Status:** {river_status}")
         else:
             st.markdown("**Status:** Not configured")
 
-        # Info footer
-        cfg = station_limits.get(sid)
-        if cfg:
-            if cfg["type"] == "operational":
-                st.caption(f"Operational limits: {cfg['min']} ft (min), {cfg['max']} ft (max).")
-            elif cfg["type"] == "flood":
-                stages = ", ".join(f"{k} at {v} ft" for k, v in cfg["stages"].items())
-                st.caption(f"Flood stages – {stages}.")
-            else:
-                st.caption(cfg["note"])
-              
+        # Custom info footer for 03274615
+        if sid == "03274615":
+            st.caption("Flood stages in ft  \n"
+                       "14 – Action stage  \n"
+                       "16 – Minor flood  \n"
+                       "24 – Moderate flood  \n"
+                       "30 – Major flood")
+        else:
+            cfg = station_limits.get(sid)
+            if cfg:
+                if cfg["type"] == "operational":
+                    st.caption(f"Operational limits: {cfg['min']} ft (min), {cfg['max']} ft (max).")
+                elif cfg["type"] == "flood":
+                    stages = ", ".join(f"{k} at {v} ft" for k, v in cfg["stages"].items())
+                    st.caption(f"Flood stages – {stages}.")
+                else:
+                    st.caption(cfg["note"])

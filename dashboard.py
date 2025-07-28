@@ -39,38 +39,6 @@ data.append({
 updated_time = datetime.now(eastern)
 st.caption(f"🔄 Last updated: {updated_time.strftime('%Y-%m-%d %I:%M %p %Z')}")
 
-# --- 7‑Day WEATHER FORECAST AT THE TOP ---
-api_key = st.secrets.get("WEATHERAPI_KEY", "")
-if not api_key:
-    st.error("❌ WEATHERAPI_KEY missing in Streamlit secrets.")
-else:
-    try:
-        res = requests.get(
-            "https://api.weatherapi.com/v1/forecast.json",
-            params={"key": api_key, "q": "47012", "days": 7, "aqi": "no", "alerts": "no"},
-            timeout=10
-        )
-        res.raise_for_status()
-        weather = res.json()
-        st.markdown('<h3 style="font-size:1.2rem;">7‑Day Weather Forecast (47012)</h3>', unsafe_allow_html=True)
-
-        days = weather["forecast"]["forecastday"]
-        cols = st.columns(len(days))
-        for col, day in zip(cols, days):
-            with col:
-                date = datetime.strptime(day["date"], "%Y-%m-%d").strftime("%a, %b %d")
-                icon = day["day"]["condition"]["icon"]
-                cond = day["day"]["condition"]["text"]
-                hi, lo = day["day"]["maxtemp_f"], day["day"]["mintemp_f"]
-                precip = day["day"]["totalprecip_in"]
-                st.markdown(f"**{date}**")
-                st.image(f"https:{icon}", width=50)
-                st.markdown(cond)
-                st.markdown(f"🌡️ {lo}°F – {hi}°F")
-                st.markdown(f"💧 Precip: {precip:.2f} in")
-    except requests.RequestException as e:
-        st.error(f"❌ Weather fetch error: {e}")
-
 st.markdown("---")
 
 # --- USGS STAGES FETCHER ---

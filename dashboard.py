@@ -25,8 +25,7 @@ BROOKVILLE_SITE_NO = "03275990"
 st.set_page_config(page_title="USGS Water Graphs", layout="wide")
 st_autorefresh(interval=REFRESH_INTERVAL * 1000, limit=None, key="autorefresh")
 
-# Page title & update time
-st.header("📈 USGS Site Graphs (Live)")
+# Page title removed as requested
 data = fetch_site_graphs()
 
 # Add custom site manually (East Fork Whitewater River near Abington)
@@ -133,7 +132,12 @@ for idx, item in enumerate(data):
     with cols[idx % 3]:
         full_title = item["title"]
         display_title = full_title.split(" - ")[0]
-        st.markdown(f"#### [{display_title}]({item['page_url']})", unsafe_allow_html=True)
+
+        # Reduced font size for graph title with inline CSS
+        st.markdown(
+            f'<div style="font-size:0.9rem;"><a href="{item["page_url"]}">{display_title}</a></div>',
+            unsafe_allow_html=True
+        )
 
         # Show graph
         if item["image_url"]:

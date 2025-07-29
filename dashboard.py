@@ -8,17 +8,30 @@ import requests
 st.markdown(
     """
     <style>
-      /* Remove top padding */
-      .block-container { padding-top: 0rem; }
-      /* Hide Streamlit menu, footer, and header */
+      /* Remove top padding from main container */
+      .block-container {
+        padding-top: 0rem;
+        padding-bottom: 0rem;
+        margin-top: 0rem;
+      }
+
+      /* Remove Streamlit menu, header and footer */
       #MainMenu {visibility: hidden;}
       footer {visibility: hidden;}
       header {visibility: hidden;}
+
+      /* Remove spacing above titles and images */
+      h1, h2, h3, h4, h5, h6 {
+        margin-top: 0rem;
+        padding-top: 0rem;
+      }
+      img {
+        margin-top: 0rem;
+      }
     </style>
     """,
     unsafe_allow_html=True,
 )
-
 
 # --- REMOVE TOP PADDING VIA CSS ---
 st.markdown(

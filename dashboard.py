@@ -21,7 +21,9 @@ eastern = pytz.timezone("US/Eastern")
 BROOKVILLE_AVG_LEVEL = 748
 BROOKVILLE_SITE_NO = "03275990"
 
-# Configure Streamlit
+# Removed page config line as requested
+# st.set_page_config(page_title="USGS Water Graphs", layout="wide")
+
 st_autorefresh(interval=REFRESH_INTERVAL * 1000, limit=None, key="autorefresh")
 
 # Page title removed as requested
@@ -132,9 +134,9 @@ for idx, item in enumerate(data):
         full_title = item["title"]
         display_title = full_title.split(" - ")[0]
 
-        # Reduced font size for graph title with inline CSS
+        # Centered and reduced font size graph title with inline CSS
         st.markdown(
-            f'<div style="font-size:0.9rem;"><a href="{item["page_url"]}">{display_title}</a></div>',
+            f'<div style="font-size:0.9rem; text-align:center;"><a href="{item["page_url"]}">{display_title}</a></div>',
             unsafe_allow_html=True
         )
 

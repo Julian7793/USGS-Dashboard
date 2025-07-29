@@ -36,11 +36,6 @@ data.append({
     "image_url": "https://waterdata.usgs.gov/nwisweb/graph?agency_cd=USGS&site_no=03274615&parm_cd=00065&period=7"
 })
 
-updated_time = datetime.now(eastern)
-st.caption(f"🔄 Last updated: {updated_time.strftime('%Y-%m-%d %I:%M %p %Z')}")
-
-st.markdown("---")
-
 # --- USGS STAGES FETCHER ---
 def fetch_live_stages(site_ids):
     lake_site = BROOKVILLE_SITE_NO
@@ -177,3 +172,7 @@ for idx, item in enumerate(data):
                     st.caption(f"Flood stages – {stages}.")
                 else:
                     st.caption(cfg["note"])
+
+# Move the last updated caption to the bottom (no separating line)
+updated_time = datetime.now(eastern)
+st.caption(f"🔄 Last updated: {updated_time.strftime('%Y-%m-%d %I:%M %p %Z')}")

@@ -22,7 +22,6 @@ BROOKVILLE_AVG_LEVEL = 748
 BROOKVILLE_SITE_NO = "03275990"
 
 # Configure Streamlit
-st.set_page_config(page_title="USGS Water Graphs", layout="wide")
 st_autorefresh(interval=REFRESH_INTERVAL * 1000, limit=None, key="autorefresh")
 
 # Page title removed as requested

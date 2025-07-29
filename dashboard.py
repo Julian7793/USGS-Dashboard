@@ -5,6 +5,21 @@ import pytz
 from streamlit_autorefresh import st_autorefresh
 import requests
 
+st.markdown(
+    """
+    <style>
+      /* Remove top padding */
+      .block-container { padding-top: 0rem; }
+      /* Hide Streamlit menu, footer, and header */
+      #MainMenu {visibility: hidden;}
+      footer {visibility: hidden;}
+      header {visibility: hidden;}
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
+
 # --- REMOVE TOP PADDING VIA CSS ---
 st.markdown(
     """

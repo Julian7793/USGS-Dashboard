@@ -150,20 +150,20 @@ except Exception as e:
     st.error(f"⚠️ Failed to fetch USGS data: {e}")
     live_stages = {}
 
-# --- DISPLAY EACH SITE ---
-cols = st.columns(3)
+# --- DISPLAY EACH SITE --- 
+cols = st.columns(2)  # Changed from 3 to 2 columns for bigger graphs
 for idx, item in enumerate(data):
-    with cols[idx % 3]:
+    with cols[idx % 2]:
         full_title = item["title"]
         display_title = full_title.split(" - ")[0]
 
-        # Centered and reduced font size graph title with inline CSS
+        # Centered, smaller font graph title
         st.markdown(
             f'<div style="font-size:0.9rem; text-align:center;"><a href="{item["page_url"]}">{display_title}</a></div>',
             unsafe_allow_html=True
         )
 
-        # Show graph
+        # Show bigger graph filling column width
         if item["image_url"]:
             st.image(item["image_url"], use_container_width=True)
         else:

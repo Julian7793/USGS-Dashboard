@@ -5,31 +5,17 @@ import pytz
 from streamlit_autorefresh import st_autorefresh
 import requests
 
-# --- PAGE CONFIG: Wide layout for bigger graphs ---
+# --- PAGE CONFIG ---
 st.set_page_config(layout="wide")
 
-# --- REMOVE TOP PADDING AND HIDE STREAMLIT UI ---
+# --- HIDE STREAMLIT UI ---
 st.markdown(
     """
     <style>
-      .block-container {
-        padding-top: 0rem;
-        padding-bottom: 0rem;
-        margin-top: 0rem;
-      }
-      #MainMenu {visibility: hidden;}
-      footer {visibility: hidden;}
-      header {visibility: hidden;}
-      h1, h2, h3, h4, h5, h6 {
-        margin-top: 0rem;
-        padding-top: 0rem;
-      }
-      img {
-        margin-top: 0rem;
-      }
-      .css-1lcbmhc.e1fqkh3o3 > div {
-          gap: 1rem;
-      }
+      .block-container { padding-top: 0rem; padding-bottom: 0rem; margin-top: 0rem; }
+      #MainMenu, footer, header {visibility: hidden;}
+      h1, h2, h3, h4, h5, h6, img {margin-top: 0rem; padding-top: 0rem;}
+      .css-1lcbmhc.e1fqkh3o3 > div {gap: 1rem;}
     </style>
     """,
     unsafe_allow_html=True,
@@ -53,7 +39,7 @@ data.append({
     "image_url": "https://waterdata.usgs.gov/nwisweb/graph?agency_cd=USGS&site_no=03274615&parm_cd=00065&period=7"
 })
 
-# Replace Brookville IN with USACE graph
+# Replace Brookville graph
 for i, site in enumerate(data):
     if "Brookville" in site["title"]:
         data[i] = {
@@ -63,13 +49,13 @@ for i, site in enumerate(data):
         }
         break
 
-# --- LIVE STAGE FETCHING ---
+# --- FETCH STAGES ---
 def fetch_live_stages(site_ids):
     lake_site = BROOKVILLE_SITE_NO
     river_sites = [sid for sid in site_ids if sid != lake_site]
     stages = {}
 
-    # Rivers (gage height 00065)
+    # Rivers
     if river_sites:
         try:
             resp = requests.get(
@@ -87,7 +73,7 @@ def fetch_live_stages(site_ids):
             for sid in river_sites:
                 stages[sid] = None
 
-    # Lake (elevation 62614)
+    # Lake (elevation)
     try:
         resp = requests.get(
             "https://waterservices.usgs.gov/nwis/iv/",
@@ -105,7 +91,7 @@ def fetch_live_stages(site_ids):
 
     return stages
 
-# --- STATION LIMIT CONFIG ---
+# --- LIMIT CONFIG ---
 station_limits = {
     "03274650": {"type": "operational", "min": 2.26, "max": 13.98,
                  "min_msg": "Lower intake out of water", "max_msg": "Float hitting bottom of gage shelf"},
@@ -117,6 +103,7 @@ station_limits = {
     "03274615": {"type": "flood", "stages": {"Action": 14, "Minor": 16, "Moderate": 24, "Major": 30}}
 }
 
+# --- STATUS FUNCTIONS ---
 def get_river_safety_status(sid, val):
     cfg = station_limits[sid]
     if val is None:
@@ -142,7 +129,7 @@ def get_lake_status(lv):
         return f"🔼 Above Normal ({lv:.2f} ft)"
     return f"🟢 Normal Level ({lv:.2f} ft)"
 
-# Fetch data
+# Fetch USGS live data
 try:
     live_stages = fetch_live_stages(list(station_limits.keys()))
 except Exception as e:
@@ -153,22 +140,20 @@ except Exception as e:
 cols = st.columns(3)
 for idx, item in enumerate(data):
     with cols[idx % 3]:
-        full_title = item["title"]
-        display_title = full_title.split(" - ")[0]
+        display_title = item["title"]
         st.markdown(
             f'<div style="font-size:0.9rem; text-align:center;"><a href="{item["page_url"]}">{display_title}</a></div>',
             unsafe_allow_html=True
         )
+
         if item["image_url"]:
             st.image(item["image_url"], use_container_width=True)
         else:
             st.warning("⚠️ No image found.")
 
-        # Determine site ID
         sid = item["page_url"].split("-")[-1] if "USGS" in item["page_url"] else None
         val = live_stages.get(sid) if sid else None
 
-        # Status
         if sid == BROOKVILLE_SITE_NO:
             status = get_lake_status(val)
             st.markdown(f"**Lake Status:** {val:.2f} ft – {status}" if val else f"**Lake Status:** ❔ No data – {status}")
@@ -178,7 +163,6 @@ for idx, item in enumerate(data):
         else:
             st.markdown("**Status:** Not configured")
 
-        # Info footer
         if sid == "03274615":
             st.caption(
                 "Flood stages in ft  \n"
@@ -197,85 +181,10 @@ for idx, item in enumerate(data):
             else:
                 st.caption(cfg["note"])
 
-# Timestamp
+# Last updated
 updated_time = datetime.now(eastern)
 st.caption(f"🔄 Last updated: {updated_time.strftime('%Y-%m-%d %I:%M %p %Z')}")
-NGVD 1929, ft"},
-    "03274615": {"type":"flood","stages":{"Action":14,"Minor":16,"Moderate":24,"Major":30}}
-}
-
-def get_river_safety_status(sid, val):
-    cfg = station_limits[sid]
-    if val is None:
-        return "❔ Unknown"
-    if cfg["type"] == "operational":
-        if val < cfg["min"]:
-            return f"🔽 Too Low – {cfg['min_msg']} ({val:.2f} ft)"
-        if val > cfg["max"]:
-            return f"🔼 Too High – {cfg['max_msg']} ({val:.2f} ft)"
-        return f"🟢 Normal Operating Range ({val:.2f} ft)"
-    for stage, thr in sorted(cfg["stages"].items(), key=lambda x: x[1], reverse=True):
-        if val >= thr:
-            return f"⚠️ {stage} Flood Stage Reached ({val:.2f} ft)"
-    return f"🟢 Below Flood Stage ({val:.2f} ft)"
-
-def get_lake_status(lv):
-    if lv is None:
-        return "❔ Unknown"
-    lb, ub = BROOKVILLE_AVG_LEVEL * 0.98, BROOKVILLE_AVG_LEVEL * 1.02
-    if lv < lb:
-        return f"🔽 Below Normal ({lv:.2f} ft)"
-    if lv > ub:
-        return f"🔼 Above Normal ({lv:.2f} ft)"
-    return f"🟢 Normal Level ({lv:.2f} ft)"
-
-# Fetch live data
-try:
-    live_stages = fetch_live_stages(list(station_limits.keys()))
-except Exception as e:
-    st.error(f"⚠️ Failed to fetch USGS data: {e}")
-    live_stages = {}
-
-# --- DISPLAY ---
-cols = st.columns(3)
-for idx, item in enumerate(data):
-    with cols[idx % 3]:
-        display_title = item["title"].split(" - ")[0]
-        st.markdown(
-            f'<div style="font-size:0.9rem; text-align:center;"><a href="{item["page_url"]}">{display_title}</a></div>',
-            unsafe_allow_html=True
-        )
-
-        if item["image_url"]:
-            st.image(item["image_url"], use_container_width=True)
-        else:
-            st.warning("⚠️ No image found.")
-
-        sid = item["page_url"].split("-")[-1]
-        val = live_stages.get(sid)
-
-        if sid == BROOKVILLE_SITE_NO:
-            status = get_lake_status(val)
-            st.markdown(f"**Lake Status:** {val:.2f} ft – {status}" if val is not None else f"**Lake Status:** ❔ No data – {status}")
-        elif sid in station_limits:
-            river_status = get_river_safety_status(sid, val)
-            st.markdown(f"**River Status:** {river_status}")
-        else:
-            st.markdown("**Status:** Not configured")
-
-        if sid == "03274615":
-            st.caption(
-                "Flood stages in ft  \n"
-                "14 – Action stage  \n"
-                "16 – Minor flood  \n"
-                "24 – Moderate flood  \n"
-                "30 – Major flood"
-            )
-        else:
-            cfg = station_limits.get(sid)
-            if cfg:
-                if cfg["type"] == "operational":
-                    st.caption(f"Operational limits: {cfg['min']} ft (min), {cfg['max']} ft (max).")
+tional limits: {cfg['min']} ft (min), {cfg['max']} ft (max).")
                 elif cfg["type"] == "flood":
                     stages = ", ".join(f"{k} at {v} ft" for k, v in cfg["stages"].items())
                     st.caption(f"Flood stages – {stages}.")

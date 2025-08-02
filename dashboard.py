@@ -1,11 +1,10 @@
 import streamlit as st
-from scraper import fetch_site_graphs
+from scraper import fetch_site_graphs, live_stage_data, get_river_safety_status, get_lake_status
 from datetime import datetime
-import pytz
 from streamlit_autorefresh import st_autorefresh
-import requests
+import pytz
 
-# Streamlit UI tweaks
+# Streamlit setup
 st.set_page_config(layout="wide")
 st.markdown("""
 <style>
@@ -16,66 +15,62 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-REFRESH_INTERVAL = 300
+# Constants
+REFRESH_INTERVAL = 300  # seconds
 eastern = pytz.timezone("US/Eastern")
 BROOKVILLE_SITE_NO = "03275990"
 BROOKVILLE_AVG_LEVEL = 748
 
+# Refresh every 5 minutes
+st_autorefresh(interval=REFRESH_INTERVAL * 1000, limit=None, key="autorefresh")
+
+# Header
 st.header("📈 Live Water Graphs / Elevation")
 st.caption(f"🔄 Updated: {datetime.now(eastern).strftime('%Y‑%m‑%d %I:%M %p')}")
 
-st_autorefresh(interval=REFRESH_INTERVAL * 1000, limit=None, key="auto")
-
-# USACE pool elevation fetch
-def fetch_usace_pool():
-    try:
-        resp = requests.get("https://water.sec.usace.army.mil/overview/lrl/locations/brookville", timeout=10)
-        resp.raise_for_status()
-        text = resp.text
-        # look for "current pool elevation is X feet"
-        import re
-        m = re.search(r"current pool elevation is ([\d\.]+) feet", text)
-        return float(m.group(1)) if m else None
-    except Exception:
-        return None
-
-usace_elev = fetch_usace_pool()
-
-# Fetch USGS graphs
+# Fetch data
 data = fetch_site_graphs()
+live = live_stage_data([d["site_no"] for d in data if d["site_no"].startswith("0")])
 
-# Add USACE entry separately
-data.insert(1, {
-    "site_no": "USACE-POOL",
-    "title": "Brookville Lake Elevation (USACE)",
-    "image_url": None,
-    "page_url": "https://water.sec.usace.army.mil/overview/lrl/locations/brookville"
-})
-
-# USGS stage fetch functions should be as before...
-from scraper import live_stage_data, get_river_safety_status, get_lake_status
-
-live = live_stage_data(list(d["site_no"] for d in data if d["site_no"].startswith("0")))
-
+# Layout
 cols = st.columns(3)
 for idx, d in enumerate(data):
     with cols[idx % 3]:
         st.markdown(f"**{d['title']}**")
+
+        # Display image if available
         if d["image_url"]:
             st.image(d["image_url"], use_container_width=True)
-        elif d["site_no"] == "USACE-POOL":
-            if usace_elev is not None:
-                status = get_lake_status(usace_elev)
-                st.markdown(f"**Elevation:** {usace_elev:.2f} ft – {status}")
+        else:
+            st.warning("⚠️ No image available.")
+
+        # Site ID-based status logic
+        sid = d["site_no"]
+        if sid.startswith("0"):
+            val = live.get(sid)
+            if sid == BROOKVILLE_SITE_NO:
+                st.markdown(f"**Lake Status:** {get_lake_status(val)}" if val is not None else "❔ No lake data")
+            else:
+                st.markdown(f"**River Status:** {get_river_safety_status(sid, val)}")
+        elif sid == "USACE-POOL":
+            # USACE pool status
+            import scraper  # avoid circular import
+            pool_level = scraper.fetch_usace_pool()
+            if pool_level is not None:
+                st.markdown(f"**Elevation:** {pool_level:.2f} ft – {get_lake_status(pool_level)}")
             else:
                 st.markdown("**Elevation:** ❔ Unknown")
-        else:
-            st.warning("⚠️ No image found.")
-        # USGS or pool status below:
-        if d["site_no"].startswith("0"):
-            val = live.get(d["site_no"])
-            st.markdown(f"**Status:** {get_river_safety_status(d['site_no'], val) if d['site_no'] != BROOKVILLE_SITE_NO else get_lake_status(val)}")
-            # add caption logic if needed
 
+        # Optional caption for special site
+        if sid == "03274615":
+            st.caption(
+                "Flood stages in ft  \n"
+                "14 – Action stage  \n"
+                "16 – Minor flood  \n"
+                "24 – Moderate flood  \n"
+                "30 – Major flood"
+            )
+
+# Timestamp
 updated = datetime.now(eastern)
 st.caption(f"Last updated: {updated.strftime('%Y‑%m‑%d %I:%M %p %Z')}")

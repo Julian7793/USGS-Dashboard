@@ -3,6 +3,8 @@ from scraper import fetch_site_graphs, live_stage_data, get_river_safety_status,
 from datetime import datetime
 from streamlit_autorefresh import st_autorefresh
 import pytz
+import requests
+import re
 
 # Streamlit setup
 st.set_page_config(layout="wide")
@@ -27,6 +29,16 @@ st_autorefresh(interval=REFRESH_INTERVAL * 1000, limit=None, key="autorefresh")
 # Header
 st.header("📈 Live Water Graphs / Elevation")
 st.caption(f"🔄 Updated: {datetime.now(eastern).strftime('%Y‑%m‑%d %I:%M %p')}")
+
+# --- USACE POOL LEVEL FETCH ---
+def fetch_usace_pool():
+    try:
+        resp = requests.get("https://water.sec.usace.army.mil/overview/lrl/locations/brookville", timeout=10)
+        resp.raise_for_status()
+        match = re.search(r"current pool elevation is ([\d\.]+) feet", resp.text, re.IGNORECASE)
+        return float(match.group(1)) if match else None
+    except Exception:
+        return None
 
 # Fetch data
 data = fetch_site_graphs()
@@ -53,9 +65,8 @@ for idx, d in enumerate(data):
             else:
                 st.markdown(f"**River Status:** {get_river_safety_status(sid, val)}")
         elif sid == "USACE-POOL":
-            # USACE pool status
-            import scraper  # avoid circular import
-            pool_level = scraper.fetch_usace_pool()
+            # 🟢 Fixed: Call local function, not scraper.fetch_usace_pool()
+            pool_level = fetch_usace_pool()
             if pool_level is not None:
                 st.markdown(f"**Elevation:** {pool_level:.2f} ft – {get_lake_status(pool_level)}")
             else:

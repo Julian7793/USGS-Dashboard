@@ -1,4 +1,3 @@
-BROOKVILLE_AVG_LEVEL = 748
 import requests
 from bs4 import BeautifulSoup
 import re
@@ -120,6 +119,7 @@ def get_river_safety_status(sid, val):
         return f"🟢 Below Flood Stage ({val:.2f} ft)"
     return "❔ Unknown"
 
+BROOKVILLE_AVG_LEVEL = 748  # Average lake level in feet
 def get_lake_status(val):
     if val is None:
         return "❔ Unknown"

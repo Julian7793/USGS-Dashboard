@@ -2,6 +2,7 @@ import requests
 from bs4 import BeautifulSoup
 import re
 
+# Site info for USGS
 site_info = [
     {"site_no": "03274650", "title": "Whitewater River Near Economy, IN - 03274650", "parm_cd": "00065"},
     {"site_no": "03276000", "title": "East Fork Whitewater River at Brookville, IN - 03276000", "parm_cd": "00065"},
@@ -28,41 +29,49 @@ def fetch_site_graphs():
             "page_url": page_url
         })
 
-    # Add USACE Brookville Reservoir image
-    usace_image_url = fetch_usace_graph_image()
+    # Add USACE Brookville summary panel (not graph image)
+    usace_data = fetch_usace_brookville_data()
     site_data.insert(1, {
         "site_no": "USACE-POOL",
-        "title": "Brookville Lake Elevation (USACE)",
-        "image_url": usace_image_url,
-        "page_url": "https://water.sec.usace.army.mil/overview/lrl/locations/brookville"
+        "title": "Brookville Lake Summary (USACE)",
+        "image_url": None,
+        "page_url": "https://water.sec.usace.army.mil/overview/lrl/locations/brookville",
+        "usace_panel": usace_data
     })
 
     return site_data
 
-def fetch_usace_graph_image():
+def fetch_usace_brookville_data():
     try:
         url = "https://water.sec.usace.army.mil/overview/lrl/locations/brookville"
         res = requests.get(url, timeout=10)
         res.raise_for_status()
         soup = BeautifulSoup(res.text, "html.parser")
+        panel = {}
 
-        img_tag = soup.find("img", {"src": re.compile(r"/images/locations/lrl/brookville/.*\.png")})
-        if img_tag:
-            return "https://water.sec.usace.army.mil" + img_tag["src"]
+        for row in soup.select("div.card"):
+            try:
+                label = row.select_one("div.card-title").text.strip()
+                value = row.select_one("div.card-value").text.strip()
+                panel[label] = value
+            except:
+                continue
+
+        return panel if panel else None
     except Exception as e:
-        print(f"Failed to fetch USACE image: {e}")
-    return None
+        print(f"Failed to fetch USACE summary: {e}")
+        return None
 
 def live_stage_data(site_ids):
     stages = {}
     lake_site = "03275990"
     river_sites = [sid for sid in site_ids if sid != lake_site and sid.startswith("0")]
 
-    # USGS river stage
+    # River stages
     try:
         resp = requests.get(
             "https://waterservices.usgs.gov/nwis/iv/",
-            params={"format":"json","sites":",".join(river_sites),"parameterCd":"00065"},
+            params={"format": "json", "sites": ",".join(river_sites), "parameterCd": "00065"},
             timeout=10
         )
         resp.raise_for_status()
@@ -75,11 +84,11 @@ def live_stage_data(site_ids):
         for sid in river_sites:
             stages[sid] = None
 
-    # USGS lake elevation
+    # Lake elevation
     try:
         resp = requests.get(
             "https://waterservices.usgs.gov/nwis/iv/",
-            params={"format":"json","sites":lake_site,"parameterCd":"62614"},
+            params={"format": "json", "sites": lake_site, "parameterCd": "62614"},
             timeout=10
         )
         resp.raise_for_status()
@@ -91,6 +100,7 @@ def live_stage_data(site_ids):
 
     return stages
 
+# Thresholds and safety
 station_limits = {
     "03274650": {"type": "operational", "min": 2.26, "max": 13.98,
                  "min_msg": "Lower intake out of water", "max_msg": "Float hitting bottom of gage shelf"},
@@ -119,7 +129,7 @@ def get_river_safety_status(sid, val):
         return f"🟢 Below Flood Stage ({val:.2f} ft)"
     return "❔ Unknown"
 
-BROOKVILLE_AVG_LEVEL = 748  # Average lake level in feet
+BROOKVILLE_AVG_LEVEL = 748
 def get_lake_status(val):
     if val is None:
         return "❔ Unknown"

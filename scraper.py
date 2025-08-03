@@ -1,3 +1,4 @@
+BROOKVILLE_AVG_LEVEL = 748
 import requests
 from bs4 import BeautifulSoup
 import re

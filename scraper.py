@@ -70,7 +70,7 @@ def fetch_usace_brookville_data():
             value = ts.get("latest_value")
             unit = ts.get("unit", "")
             delta = ts.get("delta24hr")
-            formatted = f"{value} {unit}" if value is not None else None
+            formatted = f"{value:.2f} {unit}" if value is not None else None
 
             if label == "elevation":
                 result["elevation"] = formatted

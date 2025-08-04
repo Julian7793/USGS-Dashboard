@@ -59,23 +59,38 @@ if usace:
     with cols[2]:
         # Display USACE Brookville Lake metrics
         st.markdown("### Brookville Lake (USACE Data)")
-        st.text(f"Elevation=  {usace['elevation'] or 'N/A'}")
-        st.text(f"Inflow=  {usace['inflow'] or 'N/A'}")
+        st.markdown(
+            f"<span style='font-size:133%'>Elevation=  {usace['elevation'] or 'N/A'}</span>",
+            unsafe_allow_html=True,
+        )
+        st.markdown(
+            f"<span style='font-size:133%'>Inflow=  {usace['inflow'] or 'N/A'}</span>",
+            unsafe_allow_html=True,
+        )
         st.markdown(
             format_delta(usace.get("inflow_delta"), usace.get("inflow_unit")),
             unsafe_allow_html=True,
         )
-        st.text(f"Outflow=  {usace['outflow'] or 'N/A'}")
+        st.markdown(
+            f"<span style='font-size:133%'>Outflow=  {usace['outflow'] or 'N/A'}</span>",
+            unsafe_allow_html=True,
+        )
         st.markdown(
             format_delta(usace.get("outflow_delta"), usace.get("outflow_unit")),
             unsafe_allow_html=True,
         )
-        st.text(f"Storage=  {usace['storage'] or 'N/A'}")
+        st.markdown(
+            f"<span style='font-size:133%'>Storage=  {usace['storage'] or 'N/A'}</span>",
+            unsafe_allow_html=True,
+        )
         st.markdown(
             format_delta(usace.get("storage_delta"), usace.get("storage_unit")),
             unsafe_allow_html=True,
         )
-        st.text(f"Precipitation=  {usace['precipitation'] or 'N/A'}")
+        st.markdown(
+            f"<span style='font-size:133%'>Precipitation=  {usace['precipitation'] or 'N/A'}</span>",
+            unsafe_allow_html=True,
+        )
 else:
     st.error("⚠️ Could not load Brookville Reservoir data.")
 

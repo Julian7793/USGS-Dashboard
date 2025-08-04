@@ -54,8 +54,14 @@ def fetch_usace_brookville_data():
         result = {
             "elevation": None,
             "inflow": None,
+            "inflow_delta": None,
+            "inflow_unit": None,
             "outflow": None,
+            "outflow_delta": None,
+            "outflow_unit": None,
             "storage": None,
+            "storage_delta": None,
+            "storage_unit": None,
             "precipitation": None,
         }
 
@@ -63,18 +69,25 @@ def fetch_usace_brookville_data():
             label = ts.get("label", "").lower()
             value = ts.get("latest_value")
             unit = ts.get("unit", "")
+            delta = ts.get("delta24hr")
             formatted = f"{value} {unit}" if value is not None else None
 
             if label == "elevation":
                 result["elevation"] = formatted
             elif label == "inflow":
                 result["inflow"] = formatted
+                result["inflow_delta"] = delta
+                result["inflow_unit"] = unit
             elif label == "outflow":
                 result["outflow"] = formatted
+                result["outflow_delta"] = delta
+                result["outflow_unit"] = unit
             elif label == "precipitation":
                 result["precipitation"] = formatted
             elif "storage" in label and result["storage"] is None:
                 result["storage"] = formatted
+                result["storage_delta"] = delta
+                result["storage_unit"] = unit
 
         return result
 

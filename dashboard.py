@@ -4,6 +4,18 @@ from datetime import datetime
 from streamlit_autorefresh import st_autorefresh
 from scraper import fetch_usace_brookville_data
 
+
+def format_delta(delta, unit):
+    """Return HTML snippet showing 24 hour change with color coding."""
+    if delta is None:
+        text = "24 hour change: N/A"
+        color = "gray"
+    else:
+        color = "green" if delta > 0 else "red" if delta < 0 else "gray"
+        sign = "+" if delta > 0 else ""
+        text = f"24 hour change: {sign}{delta:.2f} {unit}"
+    return f'<span style="font-size:0.5em;color:{color}">{text}</span>'
+
 # --- REMOVE TOP PADDING VIA CSS ---
 st.markdown(
     """
@@ -50,8 +62,20 @@ if usace:
         st.metric("Elevation", usace["elevation"] or "N/A")
         c1, c2 = st.columns(2)
         c1.metric("Inflow", usace["inflow"] or "N/A")
+        c1.markdown(
+            format_delta(usace.get("inflow_delta"), usace.get("inflow_unit")),
+            unsafe_allow_html=True,
+        )
         c2.metric("Outflow", usace["outflow"] or "N/A")
+        c2.markdown(
+            format_delta(usace.get("outflow_delta"), usace.get("outflow_unit")),
+            unsafe_allow_html=True,
+        )
         st.metric("Storage", usace["storage"] or "N/A")
+        st.markdown(
+            format_delta(usace.get("storage_delta"), usace.get("storage_unit")),
+            unsafe_allow_html=True,
+        )
         st.metric("Precipitation", usace["precipitation"] or "N/A")
 else:
     st.error("⚠️ Could not load Brookville Reservoir data.")

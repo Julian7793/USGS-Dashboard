@@ -14,7 +14,7 @@ def format_delta(delta, unit):
         color = "green" if delta > 0 else "red" if delta < 0 else "gray"
         sign = "+" if delta > 0 else ""
         text = f"24 hour change: {sign}{delta:.2f} {unit}"
-    return f'<span style="font-size:0.5em;color:{color}">{text}</span>'
+    return f'<span style="font-size:1em;color:{color}">{text}</span>'
 
 # --- REMOVE TOP PADDING VIA CSS ---
 st.markdown(
@@ -59,24 +59,23 @@ if usace:
     with cols[2]:
         # Display USACE Brookville Lake metrics
         st.markdown("### Brookville Lake (USACE Data)")
-        st.metric("Elevation", usace["elevation"] or "N/A")
-        c1, c2 = st.columns(2)
-        c1.metric("Inflow", usace["inflow"] or "N/A")
-        c1.markdown(
+        st.text(f"Elevation=  {usace['elevation'] or 'N/A'}")
+        st.text(f"Inflow=  {usace['inflow'] or 'N/A'}")
+        st.markdown(
             format_delta(usace.get("inflow_delta"), usace.get("inflow_unit")),
             unsafe_allow_html=True,
         )
-        c2.metric("Outflow", usace["outflow"] or "N/A")
-        c2.markdown(
+        st.text(f"Outflow=  {usace['outflow'] or 'N/A'}")
+        st.markdown(
             format_delta(usace.get("outflow_delta"), usace.get("outflow_unit")),
             unsafe_allow_html=True,
         )
-        st.metric("Storage", usace["storage"] or "N/A")
+        st.text(f"Storage=  {usace['storage'] or 'N/A'}")
         st.markdown(
             format_delta(usace.get("storage_delta"), usace.get("storage_unit")),
             unsafe_allow_html=True,
         )
-        st.metric("Precipitation", usace["precipitation"] or "N/A")
+        st.text(f"Precipitation=  {usace['precipitation'] or 'N/A'}")
 else:
     st.error("⚠️ Could not load Brookville Reservoir data.")
 

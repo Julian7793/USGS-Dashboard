@@ -1,6 +1,4 @@
 import requests
-from bs4 import BeautifulSoup
-import re
 
 site_info = [
     {"site_no": "03274650", "title": "Whitewater River Near Economy, IN - 03274650", "parm_cd": "00065"},
@@ -30,42 +28,47 @@ def fetch_site_graphs():
     return site_data
 
 def fetch_usace_brookville_data():
-    url = "https://water.usace.army.mil/overview/lrl/locations/brookville"
+    """Fetch Brookville Lake metrics from the USACE reporting API.
+
+    The previous implementation attempted to scrape values from the
+    Brookville overview web page, but the site is now a client-side
+    application that loads data asynchronously.  As a result the scraper
+    always returned ``None`` for every metric.  The data is available via a
+    public JSON API instead, so we query that endpoint directly and extract
+    the latest values from the returned timeseries list.
+    """
+
+    url = "https://water.usace.army.mil/cda/reporting/providers/lrl/locations/brookville"
     try:
         res = requests.get(url, timeout=10)
         res.raise_for_status()
-        soup = BeautifulSoup(res.text, "html.parser")
+        locations = res.json()
+        if not locations:
+            return None
 
-        data = {
-            "elevation": None,
-            "inflow": None,
-            "outflow": None,
-            "storage": None,
-            "precipitation": None
-        }
+        # The API returns a list with a single location object.
+        location = locations[0]
+        result = {"elevation": None, "inflow": None, "outflow": None,
+                  "storage": None, "precipitation": None}
 
-        metrics = soup.find_all("div", class_="overview-detail__metric")
-        for metric in metrics:
-            label = metric.find("span", class_="overview-detail__label")
-            value = metric.find("div", class_="overview-detail__value")
-            if not label or not value:
-                continue
+        for ts in location.get("timeseries", []):
+            label = ts.get("label", "").lower()
+            value = ts.get("latest_value")
+            unit = ts.get("unit", "")
+            formatted = f"{value} {unit}" if value is not None else None
 
-            label_text = label.get_text(strip=True).lower()
-            value_text = value.get_text(strip=True).replace("\xa0", " ")
+            if label == "elevation":
+                result["elevation"] = formatted
+            elif label == "inflow":
+                result["inflow"] = formatted
+            elif label == "outflow":
+                result["outflow"] = formatted
+            elif label == "precipitation":
+                result["precipitation"] = formatted
+            elif "storage" in label and result["storage"] is None:
+                result["storage"] = formatted
 
-            if "elevation" in label_text:
-                data["elevation"] = value_text
-            elif "inflow" in label_text:
-                data["inflow"] = value_text
-            elif "outflow" in label_text:
-                data["outflow"] = value_text
-            elif "storage" in label_text:
-                data["storage"] = value_text
-            elif "precipitation" in label_text:
-                data["precipitation"] = value_text
-
-        return data
+        return result
 
     except Exception as e:
         print(f"USACE data fetch failed: {e}")

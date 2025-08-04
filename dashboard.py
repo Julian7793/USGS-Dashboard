@@ -16,11 +16,25 @@ def format_delta(delta, unit):
         text = f"24 hour change: {sign}{delta:.2f} {unit}"
     return f'<span style="font-size:1em;color:{color}">{text}</span>'
 
-# --- REMOVE TOP PADDING VIA CSS ---
+# --- REMOVE TOP PADDING VIA CSS AND HIDE UI ELEMENTS ---
 st.markdown(
     """
     <style>
       .block-container { padding-top: 0rem; }
+      header[data-testid="stHeader"], footer {
+        opacity: 0;
+        transition: opacity 0.3s;
+      }
+      header[data-testid="stHeader"] {
+        border-bottom: none;
+      }
+      footer {
+        border-top: none;
+      }
+      header[data-testid="stHeader"]:hover,
+      footer:hover {
+        opacity: 1;
+      }
     </style>
     """,
     unsafe_allow_html=True,
@@ -43,9 +57,6 @@ data.append({
     "image_url": "https://waterdata.usgs.gov/nwisweb/graph?agency_cd=USGS&site_no=03274615&parm_cd=00065&period=7"
 })
 
-# --- DISPLAY GRAPHS ONLY ---
-st.markdown("---")
-
 cols = st.columns(3)
 for idx, item in enumerate(data):
     with cols[idx % 3]:
@@ -63,22 +74,25 @@ if usace:
             f"<span style='font-size:133%'>Elevation=  {usace['elevation'] or 'N/A'}</span>",
             unsafe_allow_html=True,
         )
-        st.markdown(
-            f"<span style='font-size:133%'>Inflow=  {usace['inflow'] or 'N/A'}</span>",
-            unsafe_allow_html=True,
-        )
-        st.markdown(
-            format_delta(usace.get("inflow_delta"), usace.get("inflow_unit")),
-            unsafe_allow_html=True,
-        )
-        st.markdown(
-            f"<span style='font-size:133%'>Outflow=  {usace['outflow'] or 'N/A'}</span>",
-            unsafe_allow_html=True,
-        )
-        st.markdown(
-            format_delta(usace.get("outflow_delta"), usace.get("outflow_unit")),
-            unsafe_allow_html=True,
-        )
+        io_cols = st.columns(2)
+        with io_cols[0]:
+            st.markdown(
+                f"<span style='font-size:133%'>Inflow=  {usace['inflow'] or 'N/A'}</span>",
+                unsafe_allow_html=True,
+            )
+            st.markdown(
+                format_delta(usace.get("inflow_delta"), usace.get("inflow_unit")),
+                unsafe_allow_html=True,
+            )
+        with io_cols[1]:
+            st.markdown(
+                f"<span style='font-size:133%'>Outflow=  {usace['outflow'] or 'N/A'}</span>",
+                unsafe_allow_html=True,
+            )
+            st.markdown(
+                format_delta(usace.get("outflow_delta"), usace.get("outflow_unit")),
+                unsafe_allow_html=True,
+            )
         st.markdown(
             f"<span style='font-size:133%'>Storage=  {usace['storage'] or 'N/A'}</span>",
             unsafe_allow_html=True,
@@ -99,5 +113,4 @@ else:
 
 # --- LAST UPDATED FOOTER ---
 updated_time = datetime.now().strftime('%Y-%m-%d %I:%M %p')
-st.markdown("---")
 st.caption(f"🔄 Last updated: {updated_time}")

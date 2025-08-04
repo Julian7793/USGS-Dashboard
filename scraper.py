@@ -28,3 +28,33 @@ def fetch_site_graphs():
         })
 
     return site_data
+
+def fetch_usace_brookville_data():
+    url = "https://water.usace.army.mil/overview/lrl/locations/brookville"
+
+    try:
+        res = requests.get(url, timeout=10)
+        res.raise_for_status()
+        soup = BeautifulSoup(res.text, "html.parser")
+
+        def extract_value(label):
+            section = soup.find("span", string=re.compile(label))
+            if not section:
+                return None
+            container = section.find_parent("div")
+            if not container:
+                return None
+            value_div = container.find("div", class_="value")
+            return value_div.text.strip() if value_div else None
+
+        return {
+            "elevation": extract_value("Elevation"),
+            "inflow": extract_value("Inflow"),
+            "outflow": extract_value("Outflow"),
+            "storage": extract_value("Storage"),
+            "precipitation": extract_value("Precipitation")
+        }
+
+    except Exception as e:
+        print(f"USACE data fetch failed: {e}")
+        return None

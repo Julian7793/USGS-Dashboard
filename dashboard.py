@@ -41,6 +41,17 @@ for idx, item in enumerate(data):
         else:
             st.warning("⚠️ No image found.")
 
+from scraper import fetch_usace_brookville_data
+
+usace_data = fetch_usace_brookville_data()
+if usace_data:
+    st.markdown("### 🌊 Brookville Reservoir (USACE)")
+    for k, v in usace_data.items():
+        st.markdown(f"**{k.capitalize()}:** {v}")
+else:
+    st.error("⚠️ Unable to fetch Brookville data from USACE.")
+
+
 # --- LAST UPDATED FOOTER ---
 updated_time = datetime.now().strftime('%Y-%m-%d %I:%M %p')
 st.markdown("---")

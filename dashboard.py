@@ -2,6 +2,7 @@ import streamlit as st
 from scraper import fetch_site_graphs
 from datetime import datetime
 from streamlit_autorefresh import st_autorefresh
+from scraper import fetch_usace_brookville_data
 
 # --- REMOVE TOP PADDING VIA CSS ---
 st.markdown(
@@ -41,20 +42,20 @@ for idx, item in enumerate(data):
         else:
             st.warning("⚠️ No image found.")
 
-from scraper import fetch_usace_brookville_data
-
 usace = fetch_usace_brookville_data()
 if usace:
     st.markdown("## 🌊 Brookville Lake (USACE Data)")
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Elevation", usace["elevation"] or "N/A")
+    col2.metric("Inflow", usace["inflow"] or "N/A")
+    col3.metric("Outflow", usace["outflow"] or "N/A")
     st.markdown(
-        f"**Elevation:** {usace.get('elevation', 'N/A')} ft  \n"
-        f"**Inflow:** {usace.get('inflow', 'N/A')} cfs  \n"
-        f"**Outflow:** {usace.get('outflow', 'N/A')} cfs  \n"
-        f"**Storage:** {usace.get('storage', 'N/A')} ac‑ft  \n"
-        f"**Precipitation:** {usace.get('precipitation', 'N/A')} in"
+        f"**Storage:** {usace['storage'] or 'N/A'}  \n"
+        f"**Precipitation:** {usace['precipitation'] or 'N/A'}"
     )
 else:
     st.error("⚠️ Could not load Brookville Reservoir data.")
+
 
 
 

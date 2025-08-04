@@ -5,38 +5,11 @@ import pytz
 from streamlit_autorefresh import st_autorefresh
 import requests
 
-# --- PAGE CONFIG: Wide layout for bigger graphs ---
-st.set_page_config(layout="wide")
-
-# --- REMOVE TOP PADDING AND HIDE STREAMLIT UI ---
+# --- REMOVE TOP PADDING VIA CSS ---
 st.markdown(
     """
     <style>
-      /* Remove top/bottom padding and margin from main container */
-      .block-container {
-        padding-top: 0rem;
-        padding-bottom: 0rem;
-        margin-top: 0rem;
-      }
-
-      /* Hide Streamlit menu, header, and footer */
-      #MainMenu {visibility: hidden;}
-      footer {visibility: hidden;}
-      header {visibility: hidden;}
-
-      /* Reduce spacing above titles and images */
-      h1, h2, h3, h4, h5, h6 {
-        margin-top: 0rem;
-        padding-top: 0rem;
-      }
-      img {
-        margin-top: 0rem;
-      }
-
-      /* Reduce horizontal gap between columns */
-      .css-1lcbmhc.e1fqkh3o3 > div {
-          gap: 1rem;
-      }
+      .block-container { padding-top: 0rem; }
     </style>
     """,
     unsafe_allow_html=True,
@@ -48,9 +21,12 @@ eastern = pytz.timezone("US/Eastern")
 BROOKVILLE_AVG_LEVEL = 748
 BROOKVILLE_SITE_NO = "03275990"
 
-# Auto-refresh every 5 minutes
+# Configure Streamlit
+st.set_page_config(page_title="USGS Water Graphs", layout="wide")
 st_autorefresh(interval=REFRESH_INTERVAL * 1000, limit=None, key="autorefresh")
 
+# Page title & update time
+st.header("📈 USGS Site Graphs (Live)")
 data = fetch_site_graphs()
 
 # Add custom site manually (East Fork Whitewater River near Abington)
@@ -60,7 +36,42 @@ data.append({
     "image_url": "https://waterdata.usgs.gov/nwisweb/graph?agency_cd=USGS&site_no=03274615&parm_cd=00065&period=7"
 })
 
-# --- 7‑Day WEATHER FORECAST REMOVED PER PREVIOUS REQUEST ---
+updated_time = datetime.now(eastern)
+st.caption(f"🔄 Last updated: {updated_time.strftime('%Y-%m-%d %I:%M %p %Z')}")
+
+# --- 7‑Day WEATHER FORECAST AT THE TOP ---
+api_key = st.secrets.get("WEATHERAPI_KEY", "")
+if not api_key:
+    st.error("❌ WEATHERAPI_KEY missing in Streamlit secrets.")
+else:
+    try:
+        res = requests.get(
+            "https://api.weatherapi.com/v1/forecast.json",
+            params={"key": api_key, "q": "47012", "days": 7, "aqi": "no", "alerts": "no"},
+            timeout=10
+        )
+        res.raise_for_status()
+        weather = res.json()
+        st.markdown('<h3 style="font-size:1.2rem;">7‑Day Weather Forecast (47012)</h3>', unsafe_allow_html=True)
+
+        days = weather["forecast"]["forecastday"]
+        cols = st.columns(len(days))
+        for col, day in zip(cols, days):
+            with col:
+                date = datetime.strptime(day["date"], "%Y-%m-%d").strftime("%a, %b %d")
+                icon = day["day"]["condition"]["icon"]
+                cond = day["day"]["condition"]["text"]
+                hi, lo = day["day"]["maxtemp_f"], day["day"]["mintemp_f"]
+                precip = day["day"]["totalprecip_in"]
+                st.markdown(f"**{date}**")
+                st.image(f"https:{icon}", width=50)
+                st.markdown(cond)
+                st.markdown(f"🌡️ {lo}°F – {hi}°F")
+                st.markdown(f"💧 Precip: {precip:.2f} in")
+    except requests.RequestException as e:
+        st.error(f"❌ Weather fetch error: {e}")
+
+st.markdown("---")
 
 # --- USGS STAGES FETCHER ---
 def fetch_live_stages(site_ids):
@@ -77,8 +88,8 @@ def fetch_live_stages(site_ids):
                 timeout=10
             )
             resp.raise_for_status()
-            data_json = resp.json()
-            for ts in data_json["value"]["timeSeries"]:
+            data = resp.json()
+            for ts in data["value"]["timeSeries"]:
                 sid = ts["sourceInfo"]["siteCode"][0]["value"]
                 vals = ts["values"][0]["value"]
                 stages[sid] = float(vals[-1]["value"]) if vals else None
@@ -94,8 +105,8 @@ def fetch_live_stages(site_ids):
             timeout=10
         )
         resp.raise_for_status()
-        data_json = resp.json()
-        for ts in data_json["value"]["timeSeries"]:
+        data = resp.json()
+        for ts in data["value"]["timeSeries"]:
             sid = ts["sourceInfo"]["siteCode"][0]["value"]
             vals = ts["values"][0]["value"]
             stages[sid] = float(vals[-1]["value"]) if vals else None
@@ -148,25 +159,21 @@ except Exception as e:
     st.error(f"⚠️ Failed to fetch USGS data: {e}")
     live_stages = {}
 
-# --- DISPLAY EACH SITE --- 
+# --- DISPLAY EACH SITE ---
 cols = st.columns(3)
 for idx, item in enumerate(data):
     with cols[idx % 3]:
         full_title = item["title"]
         display_title = full_title.split(" - ")[0]
-        # Centered, smaller font graph title
-        st.markdown(
-            f'<div style="font-size:0.9rem; text-align:center;"><a href="{item["page_url"]}">{display_title}</a></div>',
-            unsafe_allow_html=True
-        )
+        st.markdown(f"#### [{display_title}]({item['page_url']})", unsafe_allow_html=True)
 
-        # Show graph filling the column width
+        # Show graph
         if item["image_url"]:
             st.image(item["image_url"], use_container_width=True)
         else:
             st.warning("⚠️ No image found.")
 
-        # Determine site ID from URL
+        # Determine site ID
         sid = item["page_url"].split("-")[-1]
         val = live_stages.get(sid)
 
@@ -182,13 +189,11 @@ for idx, item in enumerate(data):
 
         # Custom info footer for 03274615
         if sid == "03274615":
-            st.caption(
-                "Flood stages in ft  \n"
-                "14 – Action stage  \n"
-                "16 – Minor flood  \n"
-                "24 – Moderate flood  \n"
-                "30 – Major flood"
-            )
+            st.caption("Flood stages in ft  \n"
+                       "14 – Action stage  \n"
+                       "16 – Minor flood  \n"
+                       "24 – Moderate flood  \n"
+                       "30 – Major flood")
         else:
             cfg = station_limits.get(sid)
             if cfg:
@@ -196,10 +201,6 @@ for idx, item in enumerate(data):
                     st.caption(f"Operational limits: {cfg['min']} ft (min), {cfg['max']} ft (max).")
                 elif cfg["type"] == "flood":
                     stages = ", ".join(f"{k} at {v} ft" for k, v in cfg["stages"].items())
-                    st.caption(f"Flood stages – {stages}.")
+                    st.caption(f"Flood stages – {stages}.")
                 else:
                     st.caption(cfg["note"])
-
-# Last updated timestamp at the bottom
-updated_time = datetime.now(eastern)
-st.caption(f"🔄 Last updated: {updated_time.strftime('%Y-%m-%d %I:%M %p %Z')}")

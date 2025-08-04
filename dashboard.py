@@ -45,13 +45,14 @@ for idx, item in enumerate(data):
 usace = fetch_usace_brookville_data()
 if usace:
     with cols[2]:
-        st.markdown("### 🌊 Brookville Lake (USACE Data)")
-        m1, m2, m3, m4, m5 = st.columns(5)
-        m1.metric("Elevation", usace["elevation"] or "N/A")
-        m2.metric("Inflow", usace["inflow"] or "N/A")
-        m3.metric("Outflow", usace["outflow"] or "N/A")
-        m4.metric("Storage", usace["storage"] or "N/A")
-        m5.metric("Precipitation", usace["precipitation"] or "N/A")
+        # Display USACE Brookville Lake metrics
+        st.markdown("### Brookville Lake (USACE Data)")
+        st.metric("Elevation", usace["elevation"] or "N/A")
+        c1, c2 = st.columns(2)
+        c1.metric("Inflow", usace["inflow"] or "N/A")
+        c2.metric("Outflow", usace["outflow"] or "N/A")
+        st.metric("Storage", usace["storage"] or "N/A")
+        st.metric("Precipitation", usace["precipitation"] or "N/A")
 else:
     st.error("⚠️ Could not load Brookville Reservoir data.")
 

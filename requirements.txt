@@ -3,5 +3,4 @@ streamlit-autorefresh
 streamlit-extras
 requests
 python-dotenv
-beautifulsoup4
 pandas

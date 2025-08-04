@@ -43,13 +43,19 @@ for idx, item in enumerate(data):
 
 from scraper import fetch_usace_brookville_data
 
-usace_data = fetch_usace_brookville_data()
-if usace_data:
-    st.markdown("### 🌊 Brookville Reservoir (USACE)")
-    for k, v in usace_data.items():
-        st.markdown(f"**{k.capitalize()}:** {v}")
+usace = fetch_usace_brookville_data()
+if usace:
+    st.markdown("## 🌊 Brookville Lake (USACE Data)")
+    st.markdown(
+        f"**Elevation:** {usace.get('elevation', 'N/A')} ft  \n"
+        f"**Inflow:** {usace.get('inflow', 'N/A')} cfs  \n"
+        f"**Outflow:** {usace.get('outflow', 'N/A')} cfs  \n"
+        f"**Storage:** {usace.get('storage', 'N/A')} ac‑ft  \n"
+        f"**Precipitation:** {usace.get('precipitation', 'N/A')} in"
+    )
 else:
-    st.error("⚠️ Unable to fetch Brookville data from USACE.")
+    st.error("⚠️ Could not load Brookville Reservoir data.")
+
 
 
 # --- LAST UPDATED FOOTER ---

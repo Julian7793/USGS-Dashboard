@@ -36,27 +36,37 @@ def fetch_usace_brookville_data():
         res.raise_for_status()
         soup = BeautifulSoup(res.text, "html.parser")
 
-        data_map = {}
-        # Based on the identified snippet content pattern:
-        mapping = {
-            "Elevation": "elevation",
-            "Inflow": "inflow",
-            "Outflow": "outflow",
-            "Storage": "storage",
-            "Precipitation": "precipitation"
+        data = {
+            "elevation": None,
+            "inflow": None,
+            "outflow": None,
+            "storage": None,
+            "precipitation": None
         }
-        for label, key in mapping.items():
-            # look for label text, then the next numeric sibling text
-            span = soup.find("span", string=lambda t: t and label in t)
-            if span:
-                # find the next text node or sibling that holds numeric content
-                val = span.find_next(string=re.compile(r"[0-9.,]+"))
-                data_map[key] = val.strip() if val else None
-            else:
-                data_map[key] = None
 
-        return data_map
+        metrics = soup.find_all("div", class_="overview-detail__metric")
+        for metric in metrics:
+            label = metric.find("span", class_="overview-detail__label")
+            value = metric.find("div", class_="overview-detail__value")
+            if not label or not value:
+                continue
+
+            label_text = label.get_text(strip=True).lower()
+            value_text = value.get_text(strip=True).replace("\xa0", " ")
+
+            if "elevation" in label_text:
+                data["elevation"] = value_text
+            elif "inflow" in label_text:
+                data["inflow"] = value_text
+            elif "outflow" in label_text:
+                data["outflow"] = value_text
+            elif "storage" in label_text:
+                data["storage"] = value_text
+            elif "precipitation" in label_text:
+                data["precipitation"] = value_text
+
+        return data
+
     except Exception as e:
-        print("Error fetching USACE Brookville data:", e)
+        print(f"USACE data fetch failed: {e}")
         return None
-

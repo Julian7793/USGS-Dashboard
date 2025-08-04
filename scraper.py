@@ -43,13 +43,21 @@ def fetch_usace_brookville_data():
         res = requests.get(url, timeout=10)
         res.raise_for_status()
         locations = res.json()
-        if not locations:
+
+        # The API normally returns a list containing a single location.
+        # Occasionally it may return a dict (e.g. when an error occurs) in
+        # which case indexing into the response would raise ``KeyError``.
+        if not isinstance(locations, list) or not locations:
             return None
 
-        # The API returns a list with a single location object.
         location = locations[0]
-        result = {"elevation": None, "inflow": None, "outflow": None,
-                  "storage": None, "precipitation": None}
+        result = {
+            "elevation": None,
+            "inflow": None,
+            "outflow": None,
+            "storage": None,
+            "precipitation": None,
+        }
 
         for ts in location.get("timeseries", []):
             label = ts.get("label", "").lower()

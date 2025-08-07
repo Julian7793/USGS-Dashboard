@@ -3,6 +3,7 @@ from scraper import fetch_site_graphs
 from datetime import datetime
 from streamlit_autorefresh import st_autorefresh
 from scraper import fetch_usace_brookville_data
+import streamlit.components.v1 as components
 
 
 def format_delta(delta, unit):
@@ -16,6 +17,7 @@ def format_delta(delta, unit):
         text = f"24 hour change: {sign}{delta:.2f} {unit}"
     return f'<span style="font-size:1em;color:{color}">{text}</span>'
 
+
 # --- REMOVE TOP PADDING VIA CSS AND HIDE UI ELEMENTS ---
 st.markdown(
     """
@@ -25,23 +27,37 @@ st.markdown(
         opacity: 0;
         transition: opacity 0.3s;
       }
-      header[data-testid="stHeader"] {
-        border-bottom: none;
-      }
-      footer {
-        border-top: none;
-      }
-      header[data-testid="stHeader"]:hover,
-      footer:hover {
-        opacity: 1;
-      }
-            /* Hide Streamlit's fullscreen button on images/graphs */
-      button[title="View fullscreen"], button[aria-label="View fullscreen"] {
-        display: none;
-      }
+      header[data-testid="stHeader"] { border-bottom: none; }
+      footer { border-top: none; }
+      header[data-testid="stHeader"]:hover, footer:hover { opacity: 1; }
     </style>
     """,
     unsafe_allow_html=True,
+)
+
+# --- JAVASCRIPT: REMOVE FULLSCREEN BUTTONS ---
+components.html(
+    """
+    <script>
+      (function () {
+        const kill = () => {
+          // remove known variants
+          document.querySelectorAll(
+            'button[title*="full"],button[aria-label*="full"],[data-testid="StyledFullScreenButton"]'
+          ).forEach(b => b.remove());
+
+          // extra sweep: any button inside stImage with a label mentioning "full"
+          document.querySelectorAll('[data-testid="stImage"] button').forEach(b => {
+            const t = (b.getAttribute('title')||'') + ' ' + (b.getAttribute('aria-label')||'');
+            if (/full\\s*screen/i.test(t)) b.remove();
+          });
+        };
+        kill();
+        new MutationObserver(kill).observe(document.body, {childList:true, subtree:true});
+      })();
+    </script>
+    """,
+    height=0,
 )
 
 # Constants
@@ -111,9 +127,6 @@ if usace:
         )
 else:
     st.error("⚠️ Could not load Brookville Reservoir data.")
-
-
-
 
 # --- LAST UPDATED FOOTER ---
 updated_time = datetime.now().strftime('%Y-%m-%d %I:%M %p')

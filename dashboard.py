@@ -35,6 +35,10 @@ st.markdown(
       footer:hover {
         opacity: 1;
       }
+            /* Hide Streamlit's fullscreen button on images/graphs */
+      button[title="View fullscreen"], button[aria-label="View fullscreen"] {
+        display: none;
+      }
     </style>
     """,
     unsafe_allow_html=True,

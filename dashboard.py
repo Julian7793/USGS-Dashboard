@@ -3,7 +3,6 @@ from scraper import fetch_site_graphs
 from datetime import datetime
 from streamlit_autorefresh import st_autorefresh
 from scraper import fetch_usace_brookville_data
-import streamlit.components.v1 as components
 
 
 def format_delta(delta, unit):
@@ -35,31 +34,6 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# --- JAVASCRIPT: REMOVE FULLSCREEN BUTTONS ---
-components.html(
-    """
-    <script>
-      (function () {
-        const kill = () => {
-          // remove known variants
-          document.querySelectorAll(
-            'button[title*="full"],button[aria-label*="full"],[data-testid="StyledFullScreenButton"]'
-          ).forEach(b => b.remove());
-
-          // extra sweep: any button inside stImage with a label mentioning "full"
-          document.querySelectorAll('[data-testid="stImage"] button').forEach(b => {
-            const t = (b.getAttribute('title')||'') + ' ' + (b.getAttribute('aria-label')||'');
-            if (/full\\s*screen/i.test(t)) b.remove();
-          });
-        };
-        kill();
-        new MutationObserver(kill).observe(document.body, {childList:true, subtree:true});
-      })();
-    </script>
-    """,
-    height=0,
-)
-
 # Constants
 REFRESH_INTERVAL = 300
 
@@ -81,7 +55,10 @@ cols = st.columns(3)
 for idx, item in enumerate(data):
     with cols[idx % 3]:
         if item["image_url"]:
-            st.image(item["image_url"], use_container_width=True)
+            st.markdown(
+                f"<img src='{item['image_url']}' style='width:100%;height:auto;display:block;' alt='Graph'>",
+                unsafe_allow_html=True,
+            )
         else:
             st.warning("⚠️ No image found.")
 

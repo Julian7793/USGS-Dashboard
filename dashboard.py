@@ -43,12 +43,14 @@ st.markdown(
         object-fit: contain;
         display: block;
       }
-      /* Vertically center Brookville data in its cell */
+      /* Center Brookville data vertically and horizontally */
       .usace-container {
         height: 46vh;
         display: flex;
         flex-direction: column;
         justify-content: center;
+        align-items: center; /* horizontal center */
+        text-align: center;  /* center text */
       }
     </style>
     """,
@@ -87,7 +89,7 @@ for idx in range(5):
             st.warning("⚠️ No image found.")
         graph_count += 1
 
-# Last cell (bottom-right) = USACE data, vertically centered
+# Last cell (bottom-right) = USACE data, centered both ways
 with cols[2]:
     st.markdown('<div class="usace-container">', unsafe_allow_html=True)
     if usace:

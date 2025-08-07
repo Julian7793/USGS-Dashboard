@@ -4,7 +4,6 @@ from datetime import datetime
 from streamlit_autorefresh import st_autorefresh
 from scraper import fetch_usace_brookville_data
 
-
 def format_delta(delta, unit):
     """Return HTML snippet showing 24 hour change with color coding."""
     if delta is None:
@@ -16,21 +15,28 @@ def format_delta(delta, unit):
         text = f"24 hour change: {sign}{delta:.2f} {unit}"
     return f'<span style="font-size:1em;color:{color}">{text}</span>'
 
-
 # --- PAGE CONFIG ---
 st.set_page_config(page_title="USGS Water Graphs", layout="wide")
 
-# --- STYLE for 3×2 grid in 1080p kiosk ---
+# --- STYLE: remove all padding/margins & header/footer ---
 st.markdown(
     """
     <style>
+      /* Remove Streamlit's top padding and margins */
       .block-container {
         padding-top: 0 !important;
+        padding-bottom: 0 !important;
         padding-left: 8px !important;
         padding-right: 8px !important;
         max-width: 1920px !important;
       }
+      /* Remove default header/footer */
       header[data-testid="stHeader"], footer { display: none !important; }
+      /* Remove white space above first element */
+      div[data-testid="stVerticalBlock"] > div:first-child {
+        margin-top: 0 !important;
+        padding-top: 0 !important;
+      }
       [data-testid="column"] {
         padding-left: 8px !important;
         padding-right: 8px !important;
@@ -67,7 +73,6 @@ usace = fetch_usace_brookville_data()
 
 # --- 3×2 GRID ---
 cols = st.columns(3)
-# Fill first 5 cells with graphs
 graph_count = 0
 for idx in range(5):
     with cols[idx % 3]:
@@ -80,7 +85,7 @@ for idx in range(5):
             st.warning("⚠️ No image found.")
         graph_count += 1
 
-# Last cell (bottom-right) = USACE data
+# Last cell = USACE data
 with cols[2]:
     if usace:
         st.markdown("### Brookville Lake (USACE Data)")

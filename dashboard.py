@@ -17,31 +17,53 @@ def format_delta(delta, unit):
     return f'<span style="font-size:1em;color:{color}">{text}</span>'
 
 
-# --- REMOVE TOP PADDING VIA CSS AND HIDE UI ELEMENTS ---
+# --- PAGE CONFIG ---
+st.set_page_config(page_title="USGS Water Graphs", layout="wide")
+
+# --- STYLE: trim padding, tighten column gaps, fix image height for 3x2 on 1080p ---
 st.markdown(
     """
     <style>
-      .block-container { padding-top: 0rem; }
-      header[data-testid="stHeader"], footer {
-        opacity: 0;
-        transition: opacity 0.3s;
+      /* Keep everything snug for a 1920x1080 kiosk */
+      .block-container {
+        padding-top: 0 !important;
+        padding-left: 8px !important;
+        padding-right: 8px !important;
+        max-width: 1920px !important;
       }
-      header[data-testid="stHeader"] { border-bottom: none; }
-      footer { border-top: none; }
-      header[data-testid="stHeader"]:hover, footer:hover { opacity: 1; }
+      /* Hide Streamlit chrome */
+      header[data-testid="stHeader"], footer { display: none !important; }
+
+      /* Reduce gutters between columns */
+      [data-testid="column"] {
+        padding-left: 8px !important;
+        padding-right: 8px !important;
+      }
+
+      /* Make markdown blocks not add big margins */
+      .stMarkdown, .stMarkdown p { margin: 0 !important; }
+
+      /* Graph sizing:
+         Two rows should fill most of the height.
+         46vh x 2 = 92vh (leaves ~8vh for tiny margins).
+      */
+      img.graph-img {
+        width: 100%;
+        height: 46vh;           /* <- adjust to 45–48vh to taste */
+        max-height: 46vh;
+        object-fit: contain;    /* preserve aspect ratio, no cropping */
+        display: block;
+      }
     </style>
     """,
     unsafe_allow_html=True,
 )
 
-# Constants
-REFRESH_INTERVAL = 300
-
-# Configure Streamlit
-st.set_page_config(page_title="USGS Water Graphs", layout="wide")
+# --- AUTOREFRESH ---
+REFRESH_INTERVAL = 300  # seconds
 st_autorefresh(interval=REFRESH_INTERVAL * 1000, limit=None, key="autorefresh")
 
-# Fetch site graph data
+# --- DATA ---
 data = fetch_site_graphs()
 
 # Add custom site manually (East Fork Whitewater River near Abington)
@@ -51,60 +73,54 @@ data.append({
     "image_url": "https://waterdata.usgs.gov/nwisweb/graph?agency_cd=USGS&site_no=03274615&parm_cd=00065&period=7"
 })
 
-cols = st.columns(3)
-for idx, item in enumerate(data):
-    with cols[idx % 3]:
-        if item["image_url"]:
-            st.markdown(
-                f"<img src='{item['image_url']}' style='width:100%;height:auto;display:block;' alt='Graph'>",
-                unsafe_allow_html=True,
-            )
-        else:
-            st.warning("⚠️ No image found.")
+# Keep only 6 graphs for a clean 3x2 grid on 1080p
+grid_items = [d for d in data if d.get("image_url")][:6]
 
+# --- 3x2 GRID ---
+cols = st.columns(3)
+for idx, item in enumerate(grid_items):
+    with cols[idx % 3]:
+        st.markdown(
+            f"<img src='{item['image_url']}' class='graph-img' alt='Graph'>",
+            unsafe_allow_html=True,
+        )
+
+# --- USACE BROOKVILLE (compact, below the grid) ---
 usace = fetch_usace_brookville_data()
 if usace:
-    with cols[2]:
-        # Display USACE Brookville Lake metrics
-        st.markdown("### Brookville Lake (USACE Data)")
+    st.markdown("<div style='height:4vh'></div>", unsafe_allow_html=True)  # small spacer
+    st.markdown("### Brookville Lake (USACE Data)")
+    c1, c2, c3, c4 = st.columns(4)
+    with c1:
         st.markdown(
-            f"<span style='font-size:133%'>Elevation=  {usace['elevation'] or 'N/A'}</span>",
+            f"<span style='font-size:125%'>Elevation=  {usace['elevation'] or 'N/A'}</span>",
             unsafe_allow_html=True,
         )
-        io_cols = st.columns(2)
-        with io_cols[0]:
-            st.markdown(
-                f"<span style='font-size:133%'>Inflow=  {usace['inflow'] or 'N/A'}</span>",
-                unsafe_allow_html=True,
-            )
-            st.markdown(
-                format_delta(usace.get("inflow_delta"), usace.get("inflow_unit")),
-                unsafe_allow_html=True,
-            )
-        with io_cols[1]:
-            st.markdown(
-                f"<span style='font-size:133%'>Outflow=  {usace['outflow'] or 'N/A'}</span>",
-                unsafe_allow_html=True,
-            )
-            st.markdown(
-                format_delta(usace.get("outflow_delta"), usace.get("outflow_unit")),
-                unsafe_allow_html=True,
-            )
+    with c2:
         st.markdown(
-            f"<span style='font-size:133%'>Storage=  {usace['storage'] or 'N/A'}</span>",
+            f"<span style='font-size:125%'>Inflow=  {usace['inflow'] or 'N/A'}</span>",
             unsafe_allow_html=True,
         )
+        st.markdown(format_delta(usace.get("inflow_delta"), usace.get("inflow_unit")), unsafe_allow_html=True)
+    with c3:
         st.markdown(
-            format_delta(usace.get("storage_delta"), usace.get("storage_unit")),
+            f"<span style='font-size:125%'>Outflow=  {usace['outflow'] or 'N/A'}</span>",
             unsafe_allow_html=True,
         )
+        st.markdown(format_delta(usace.get("outflow_delta"), usace.get("outflow_unit")), unsafe_allow_html=True)
+    with c4:
         st.markdown(
-            f"<span style='font-size:133%'>Precipitation=  {usace['precipitation'] or 'N/A'}</span>",
+            f"<span style='font-size:125%'>Storage=  {usace['storage'] or 'N/A'}</span>",
             unsafe_allow_html=True,
         )
+        st.markdown(format_delta(usace.get("storage_delta"), usace.get("storage_unit")), unsafe_allow_html=True)
+    st.markdown(
+        f"<span style='font-size:120%'>Precipitation=  {usace['precipitation'] or 'N/A'}</span>",
+        unsafe_allow_html=True,
+    )
 else:
     st.error("⚠️ Could not load Brookville Reservoir data.")
 
-# --- LAST UPDATED FOOTER ---
+# --- LAST UPDATED FOOTER (small) ---
 updated_time = datetime.now().strftime('%Y-%m-%d %I:%M %p')
 st.caption(f"🔄 Last updated: {updated_time}")

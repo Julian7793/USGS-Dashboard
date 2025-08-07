@@ -43,15 +43,6 @@ st.markdown(
         object-fit: contain;
         display: block;
       }
-      /* Center Brookville data vertically and horizontally */
-      .usace-container {
-        height: 46vh;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        align-items: center; /* horizontal center */
-        text-align: center;  /* center text */
-      }
     </style>
     """,
     unsafe_allow_html=True,
@@ -89,9 +80,8 @@ for idx in range(5):
             st.warning("⚠️ No image found.")
         graph_count += 1
 
-# Last cell (bottom-right) = USACE data, centered both ways
+# Last cell (bottom-right) = USACE data
 with cols[2]:
-    st.markdown('<div class="usace-container">', unsafe_allow_html=True)
     if usace:
         st.markdown("### Brookville Lake (USACE Data)")
         st.markdown(
@@ -122,7 +112,6 @@ with cols[2]:
         )
     else:
         st.error("⚠️ Could not load Brookville Reservoir data.")
-    st.markdown('</div>', unsafe_allow_html=True)
 
 # --- LAST UPDATED FOOTER ---
 updated_time = datetime.now().strftime('%Y-%m-%d %I:%M %p')

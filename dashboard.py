@@ -112,10 +112,10 @@ for i in range(2):  # two graphs left/middle
             st.warning("⚠️ No image found.")
         graph_idx += 1
 
-# Right cell: Title + USACE box
+# Right cell: USACE data inside grey box with title
 with cols_bottom[2]:
-    st.markdown("### Brookville Lake (USACE Data)")
     st.markdown('<div class="usace-card">', unsafe_allow_html=True)
+    st.markdown("### Brookville Lake (USACE Data)")
 
     if usace:
         st.markdown(f"<span style='font-size:125%'>Elevation=  {usace['elevation'] or 'N/A'}</span>", unsafe_allow_html=True)
@@ -123,19 +123,20 @@ with cols_bottom[2]:
         io_cols = st.columns(2)
         with io_cols[0]:
             st.markdown(f"<span style='font-size:125%'>Inflow=  {usace['inflow'] or 'N/A'}</span>", unsafe_allow_html=True)
-            st.markdown(format_delta(usace.get("inflow_delta"), usace.get("inflow_unit")), unsafe_allow_html=True)
+            st.markdown(format_delta(usace.get('inflow_delta'), usace.get('inflow_unit')), unsafe_allow_html=True)
         with io_cols[1]:
             st.markdown(f"<span style='font-size:125%'>Outflow=  {usace['outflow'] or 'N/A'}</span>", unsafe_allow_html=True)
-            st.markdown(format_delta(usace.get("outflow_delta"), usace.get("outflow_unit")), unsafe_allow_html=True)
+            st.markdown(format_delta(usace.get('outflow_delta'), usace.get('outflow_unit')), unsafe_allow_html=True)
 
         st.markdown(f"<span style='font-size:125%'>Storage=  {usace['storage'] or 'N/A'}</span>", unsafe_allow_html=True)
-        st.markdown(format_delta(usace.get("storage_delta"), usace.get("storage_unit")), unsafe_allow_html=True)
+        st.markdown(format_delta(usace.get('storage_delta'), usace.get('storage_unit')), unsafe_allow_html=True)
 
         st.markdown(f"<span style='font-size:125%'>Precipitation=  {usace['precipitation'] or 'N/A'}</span>", unsafe_allow_html=True)
     else:
         st.error("⚠️ Could not load Brookville Reservoir data.")
 
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 # --- LAST UPDATED FOOTER ---
 updated_time = datetime.now().strftime('%Y-%m-%d %I:%M %p')

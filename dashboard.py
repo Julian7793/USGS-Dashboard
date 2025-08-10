@@ -99,8 +99,23 @@ for i in range(2):  # two graphs on left/middle
             st.warning("⚠️ No image found.")
         graph_idx += 1
 
-# Right cell on Row 2: USACE panel
+# Right cell on Row 2: USACE panel with grey background same size as graphs
 with cols_bottom[2]:
+    st.markdown(
+        """
+        <div style="
+            background-color: #f0f0f0;
+            padding: 12px;
+            height: 46vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+            border-radius: 6px;
+        ">
+        """,
+        unsafe_allow_html=True,
+    )
+
     if usace:
         st.markdown("### Brookville Lake (USACE Data)")
         st.markdown(
@@ -140,6 +155,8 @@ with cols_bottom[2]:
         )
     else:
         st.error("⚠️ Could not load Brookville Reservoir data.")
+
+    st.markdown("</div>", unsafe_allow_html=True)
 
 # --- LAST UPDATED FOOTER (no icon) ---
 updated_time = datetime.now().strftime('%Y-%m-%d %I:%M %p')

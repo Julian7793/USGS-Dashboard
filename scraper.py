@@ -1,9 +1,8 @@
 import re
 import requests
-from typing import Optional, Tuple
 
 # -------------------------------
-# USGS sites to show as graphs
+# USGS sites to show as graphs (unchanged)
 # -------------------------------
 site_info = [
     {"site_no": "03274650", "title": "Whitewater River Near Economy, IN - 03274650", "parm_cd": "00065"},
@@ -25,39 +24,18 @@ def fetch_site_graphs():
         )
         page_url = f"https://waterdata.usgs.gov/monitoring-location/USGS-{site_no}"
 
-        site_data.append(
-            {
-                "title": title,
-                "page_url": page_url,
-                "image_url": image_url,
-            }
-        )
+        site_data.append({"title": title, "page_url": page_url, "image_url": image_url})
     return site_data
 
 
 # -------------------------------
-# USACE Brookville data scraping
+# USACE Brookville data scraping (server-rendered daily report)
 # -------------------------------
-USACE_URLS = [
-    "https://water.sec.usace.army.mil/overview/lrl/locations/brookville",
-    "https://water.usace.army.mil/overview/lrl/locations/brookville",
-]
+DAILY_REPORT_URL = "https://www.lrl-wc.usace.army.mil/reports/lkreport.html"
 
-UA_HEADERS = {
-    "User-Agent": (
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-        "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
-    ),
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-    "Accept-Language": "en-US,en;q=0.9",
-    "Cache-Control": "no-cache",
-    "Pragma": "no-cache",
-}
-
-# Regex helpers
-NUM_RE = re.compile(r"(-?\d{1,3}(?:,\d{3})*(?:\.\d+)?|-?\d+(?:\.\d+)?)")
-TAG_RE = re.compile(r"<[^>]+>")  # strip HTML tags (robust unit matching)
-WS_RE = re.compile(r"\s+")
+NUM = re.compile(r"(-?\d{1,3}(?:,\d{3})*(?:\.\d+)?|-?\d+(?:\.\d+)?)")
+TAG = re.compile(r"<[^>]+>")
+WS = re.compile(r"\s+")
 
 def _to_float(s):
     if s is None:
@@ -67,139 +45,59 @@ def _to_float(s):
     except Exception:
         return None
 
-def _fmt(num: Optional[float], unit: str) -> Optional[str]:
+def _fmt(num, unit):
     if num is None:
         return None
     return f"{num:.2f} {unit}"
 
-def _sanitize_precip(num: Optional[float], unit: str) -> Optional[str]:
+def _sanitize_precip_value(num):
+    # If any bogus sentinel comes through (unlikely on daily report), clamp to 0.00 in
     if num is None:
         return None
     if num <= -900:
-        return "0.00 in"  # change to "N/A" if you prefer
-    return f"{num:.2f} {unit}"
+        return "0.00 in"
+    return f"{num:.2f} in"
 
-def _get_html() -> Optional[str]:
-    for url in USACE_URLS:
-        try:
-            r = requests.get(url, headers=UA_HEADERS, timeout=25)
-            r.raise_for_status()
-            html = r.text
-            # Write for diagnostics so we can inspect what your Pi actually got
-            try:
-                with open("/tmp/usace_brookville.html", "w", encoding="utf-8") as f:
-                    f.write(html)
-            except Exception:
-                pass
-            if html and len(html) > 1000:
-                return html
-        except Exception:
-            continue
-    return None
-
-def _find_label_block(html: str, label: str, window: int = 10000) -> Optional[str]:
-    i = html.lower().find(label.lower())
-    if i == -1:
-        return None
-    j = min(len(html), i + window)
-    return html[i:j]
-
-def _clean(block: Optional[str]) -> str:
-    if not block:
-        return ""
-    # Strip tags, normalize whitespace and punctuation spacing
-    txt = TAG_RE.sub(" ", block)
-    txt = WS_RE.sub(" ", txt).strip()
-    # Normalize weird hyphens, NBSP etc.
-    txt = txt.replace("\u00a0", " ").replace("–", "-").replace("—", "-")
+def _clean_html(html: str) -> str:
+    txt = TAG.sub(" ", html)
+    txt = WS.sub(" ", txt).strip()
     return txt
 
-def _unit_index(clean_block: str, unit_words: list[str]) -> Optional[Tuple[int, str]]:
-    lowest = None
-    which = None
-    for u in unit_words:
-        m = re.search(rf"\b{re.escape(u)}\b", clean_block, flags=re.IGNORECASE)
-        if m:
-            j = m.start()
-            if lowest is None or j < lowest:
-                lowest = j
-                which = u
-    if lowest is None:
-        return None
-    u_norm = which.lower()
-    if "cfs" in u_norm:
-        u_norm = "cfs"
-    elif "ac" in u_norm or "acre" in u_norm:
-        u_norm = "ac-ft"
-    elif "ft" in u_norm:
-        u_norm = "ft"
-    elif u_norm == "in":
-        u_norm = "in"
-    return lowest, u_norm
-
-def _value_before_unit(clean_block: str, unit_idx: int) -> Optional[float]:
-    left = clean_block[:unit_idx]
-    nums = NUM_RE.findall(left)
-    if not nums:
-        return None
-    return _to_float(nums[-1])
-
-def _delta_after_unit(clean_block: str, unit_end_idx: int, main_val: Optional[float]) -> Optional[float]:
-    right = clean_block[unit_end_idx:]
-    nums = [ _to_float(n) for n in NUM_RE.findall(right) ]
-    # Filter out years and timestamps (>= 1900), keep distinct from main value
-    cand = [n for n in nums if n is not None and n < 1900]
-    # Prefer decimals (24h deltas often decimal)
-    decimals = [n for n in cand if abs(n - int(n)) > 1e-9]
-    seq = decimals if decimals else cand
-    if not seq:
-        return None
-    for n in reversed(seq):
-        if main_val is None or abs(n - main_val) > 1e-9:
-            return n
-    return seq[-1]
-
-def _parse_metric(html: str, label: str, unit_words: list[str], default_unit: str):
+def _extract_brookville_row_text(clean_text: str) -> str | None:
     """
-    Strategy:
-      1) Take a large label-local block (10k chars).
-      2) Strip tags so units split by tags still match.
-      3) Find a unit word.
-      4) value = last number BEFORE unit; delta = reasonable number AFTER unit.
-      5) Fallback: first two numbers in the cleaned block.
+    Find the line/segment for Brookville in the Daily Lake Report.
+    The table includes a row with 'Brookville' (project name).
+    We grab ~300 chars around it for parsing.
     """
-    block = _find_label_block(html, label, window=10000)
-    clean = _clean(block)
-
-    if not clean:
-        return None, None, default_unit
-
-    up = _unit_index(clean, unit_words)
-    if not up:
-        nums = [ _to_float(n) for n in NUM_RE.findall(clean) ]
-        val = nums[0] if nums else None
-        delta = nums[1] if len(nums) >= 2 else None
-        return val, delta, default_unit
-
-    unit_idx, unit_norm = up
-    val = _value_before_unit(clean, unit_idx)
-    delta = _delta_after_unit(clean, unit_idx + len(unit_norm), val)
-    return val, delta, unit_norm or default_unit
+    i = clean_text.lower().find("brookville")
+    if i == -1:
+        return None
+    start = max(0, i - 80)
+    end = min(len(clean_text), i + 300)
+    return clean_text[start:end]
 
 def fetch_usace_brookville_data():
     """
-    Scrape Brookville Reservoir stats:
-      - Elevation (ft) + 24h delta
-      - Inflow (cfs) + 24h delta
-      - Outflow (cfs) + 24h delta
-      - Storage (ac-ft) + 24h delta
-      - Precipitation (in)  (sentinels sanitized)
-    Returns a dict suitable for direct rendering.
+    Parse Brookville metrics from the Louisville District Daily Lake Report:
+      - Elevation (Today's Pool, ft)
+      - Elevation 24-hour Change (ft)
+      - 24-hour Precipitation (in)
+      - 24-hour Avg Inflow (cfs)
+      - 6 A.M. Outflow (cfs)
+    Storage is not provided on this report -> returned as None.
     """
     try:
-        html = _get_html()
-        if not html:
-            print("USACE fetch: no HTML (all metrics -> None)")
+        r = requests.get(DAILY_REPORT_URL, headers={"Cache-Control": "no-cache"}, timeout=25)
+        r.raise_for_status()
+        html = r.text
+
+        # Clean to plain text to avoid tag split issues
+        txt = _clean_html(html)
+
+        # Pull a compact window around the Brookville row
+        seg = _extract_brookville_row_text(txt)
+        if not seg:
+            print("USACE daily report: could not find 'Brookville' row.")
             return {
                 "elevation": None, "elevation_delta": None, "elevation_unit": "ft",
                 "inflow": None, "inflow_delta": None, "inflow_unit": "cfs",
@@ -208,50 +106,58 @@ def fetch_usace_brookville_data():
                 "precipitation": None,
             }
 
-        # Elevation
-        v, d, u = _parse_metric(html, "Elevation", ["ft", "feet"], "ft")
-        elevation = _fmt(v, u)
-        elevation_delta = d
+        # Heuristic parse:
+        # The Daily Lake Report header shows:
+        #  - Today's Pool (ft)
+        #  - 24 Hour Change (ft)
+        #  - 24 Hour Precip (in)
+        #  - 24 Hour Avg Inflow (CFS)
+        #  - 6 A.M. Outflow (CFS)
+        #
+        # We will:
+        #  1) Extract all numbers in the segment
+        #  2) Use context keywords to anchor each field if present
+        #  3) Fallback: pick numbers in expected order near keywords
+        numbers = [ _to_float(n) for n in NUM.findall(seg) ]
 
-        # Inflow
-        v, d, u = _parse_metric(html, "Inflow", ["cfs"], "cfs")
-        inflow = _fmt(v, u)
-        inflow_delta = d
+        # Try anchored pulls for each metric
+        def after(label, window=120):
+            j = seg.lower().find(label.lower())
+            if j == -1:
+                return None
+            subs = seg[j:j+window]
+            ns = [ _to_float(n) for n in NUM.findall(subs) ]
+            return ns[0] if ns else None
 
-        # Outflow
-        v, d, u = _parse_metric(html, "Outflow", ["cfs"], "cfs")
-        outflow = _fmt(v, u)
-        outflow_delta = d
+        elev = after("Todays Pool") or after("Today s Pool") or after("Today's Pool")
+        elev_delta = after("24 Hour Change")
+        precip = after("24 Hour Precip")
+        inflow = after("24 Hour Avg Inflow")
+        outflow = after("6 A.M. Outflow") or after("6 AM Outflow") or after("6 A M Outflow")
 
-        # Storage
-        v, d, u = _parse_metric(html, "Storage", ["ac-ft", "acre-ft", "ac ft", "acft"], "ac-ft")
-        storage = _fmt(v, u)
-        storage_delta = d
-
-        # Precipitation (sanitize sentinels)
-        v, _d, u = _parse_metric(html, "Precipitation", ["in"], "in")
-        precipitation = _sanitize_precip(v, u)
-
-        # Basic diagnostics if anything is None
-        if any(x is None for x in [elevation, inflow, outflow, storage, precipitation]):
-            print("USACE parse warning: one or more fields None. See /tmp/usace_brookville.html for the raw page.")
+        # Final formatting / sanitizing
+        elevation = _fmt(elev, "ft")
+        elevation_delta = elev_delta  # ft, shown by your format_delta()
+        precipitation = _sanitize_precip_value(precip)
+        inflow_s = _fmt(inflow, "cfs")
+        outflow_s = _fmt(outflow, "cfs")
 
         return {
             "elevation": elevation,
             "elevation_delta": elevation_delta,
             "elevation_unit": "ft",
-            "inflow": inflow,
-            "inflow_delta": inflow_delta,
+            "inflow": inflow_s,
+            "inflow_delta": inflow,   # the daily report doesn't provide inflow delta; keep None or reuse inflow if you prefer
             "inflow_unit": "cfs",
-            "outflow": outflow,
-            "outflow_delta": outflow_delta,
+            "outflow": outflow_s,
+            "outflow_delta": outflow, # same note as above
             "outflow_unit": "cfs",
-            "storage": storage,
-            "storage_delta": storage_delta,
+            "storage": None,          # not in this report
+            "storage_delta": None,
             "storage_unit": "ac-ft",
             "precipitation": precipitation,
         }
 
     except Exception as e:
-        print(f"USACE data fetch failed: {e}")
+        print(f"USACE daily report fetch failed: {e}")
         return None

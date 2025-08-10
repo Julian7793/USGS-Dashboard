@@ -19,11 +19,10 @@ def format_delta(delta, unit):
 # --- PAGE CONFIG ---
 st.set_page_config(page_title="USGS Water Graphs", layout="wide")
 
-# --- STYLE: remove padding, header/footer, status bar, and top line ---
+# --- STYLE: remove padding, header/footer, status bar, and colored top line ---
 st.markdown(
     """
     <style>
-      /* Remove all Streamlit default padding/margins */
       .block-container {
         padding-top: 0 !important;
         padding-bottom: 0 !important;
@@ -33,12 +32,12 @@ st.markdown(
       }
       header[data-testid="stHeader"], footer { display: none !important; }
       div[data-testid="stStatusWidget"] { display: none !important; } /* status bar */
-      div[data-testid="stDecoration"] { display: none !important; } /* colored top line */
+      div[data-testid="stDecoration"] { display: none !important; }   /* colored top line */
       [data-testid="column"] { padding-left: 8px !important; padding-right: 8px !important; }
       .stMarkdown, .stMarkdown p { margin: 0 !important; }
       img.graph-img {
         width: 100%;
-        height: 46vh;
+        height: 46vh;    /* fits two rows exactly */
         max-height: 46vh;
         object-fit: contain;
         display: block;
@@ -49,10 +48,10 @@ st.markdown(
 )
 
 # --- AUTOREFRESH ---
-REFRESH_INTERVAL = 300
+REFRESH_INTERVAL = 300  # 5 minutes
 st_autorefresh(interval=REFRESH_INTERVAL * 1000, limit=None, key="autorefresh")
 
-# --- USGS GRAPHS (cached) ---
+# --- USGS GRAPHS (cache the list, not the images) ---
 @st.cache_data(ttl=3600, show_spinner=False)
 def get_usgs_graphs():
     return fetch_site_graphs()
@@ -66,31 +65,42 @@ data.append({
     "image_url": "https://waterdata.usgs.gov/nwisweb/graph?agency_cd=USGS&site_no=03274615&parm_cd=00065&period=7"
 })
 
-# --- USACE DATA (always refetch) ---
+# --- USACE DATA (always refetch on rerun) ---
 usace = fetch_usace_brookville_data()
 
-# --- 3×2 GRID ---
-cols = st.columns(3)
-graph_count = 0
+# --- LAYOUT: Two rows (3 columns). Row 1 = 3 graphs. Row 2 = 2 graphs + USACE. ---
+bucket_15m = int(time.time() // (15 * 60))  # cache-buster for USGS images
 
-bucket_15m = int(time.time() // (15 * 60))
-
-for idx in range(5):
-    with cols[idx % 3]:
-        if graph_count < len(data) and data[graph_count].get("image_url"):
-            img_url = data[graph_count]["image_url"]
+# Row 1: 3 graphs
+cols_top = st.columns(3)
+graph_idx = 0
+for i in range(3):
+    with cols_top[i]:
+        if graph_idx < len(data) and data[graph_idx].get("image_url"):
+            img_url = data[graph_idx]["image_url"]
             sep = "&" if "?" in img_url else "?"
             img_url_cb = f"{img_url}{sep}_cb={bucket_15m}"
-            st.markdown(
-                f"<img src='{img_url_cb}' class='graph-img' alt='Graph'>",
-                unsafe_allow_html=True,
-            )
+            st.markdown(f"<img src='{img_url_cb}' class='graph-img' alt='Graph'>", unsafe_allow_html=True)
         else:
             st.warning("⚠️ No image found.")
-        graph_count += 1
+        graph_idx += 1
 
-# Last cell = USACE data
-with cols[2]:
+# Row 2: 2 graphs + USACE
+cols_bottom = st.columns(3)
+
+for i in range(2):  # two graphs on left/middle
+    with cols_bottom[i]:
+        if graph_idx < len(data) and data[graph_idx].get("image_url"):
+            img_url = data[graph_idx]["image_url"]
+            sep = "&" if "?" in img_url else "?"
+            img_url_cb = f"{img_url}{sep}_cb={bucket_15m}"
+            st.markdown(f"<img src='{img_url_cb}' class='graph-img' alt='Graph'>", unsafe_allow_html=True)
+        else:
+            st.warning("⚠️ No image found.")
+        graph_idx += 1
+
+# Right cell on Row 2: USACE panel
+with cols_bottom[2]:
     if usace:
         st.markdown("### Brookville Lake (USACE Data)")
         st.markdown(
@@ -104,14 +114,19 @@ with cols[2]:
                 f"<span style='font-size:125%'>Inflow=  {usace['inflow'] or 'N/A'}</span>",
                 unsafe_allow_html=True,
             )
-            st.markdown(format_delta(usace.get("inflow_delta"), usace.get("inflow_unit")), unsafe_allow_html=True)
-
+            st.markdown(
+                format_delta(usace.get("inflow_delta"), usace.get("inflow_unit")),
+                unsafe_allow_html=True,
+            )
         with io_cols[1]:
             st.markdown(
                 f"<span style='font-size:125%'>Outflow=  {usace['outflow'] or 'N/A'}</span>",
                 unsafe_allow_html=True,
             )
-            st.markdown(format_delta(usace.get("outflow_delta"), usace.get("outflow_unit")), unsafe_allow_html=True)
+            st.markdown(
+                format_delta(usace.get("outflow_delta"), usace.get("outflow_unit")),
+                unsafe_allow_html=True,
+            )
 
         st.markdown(
             f"<span style='font-size:125%'>Storage=  {usace['storage'] or 'N/A'}</span>",
@@ -126,6 +141,6 @@ with cols[2]:
     else:
         st.error("⚠️ Could not load Brookville Reservoir data.")
 
-# --- LAST UPDATED FOOTER (no emoji) ---
+# --- LAST UPDATED FOOTER (no icon) ---
 updated_time = datetime.now().strftime('%Y-%m-%d %I:%M %p')
 st.caption(f"Last updated: {updated_time}")

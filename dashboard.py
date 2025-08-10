@@ -33,7 +33,15 @@ css = """
   header[data-testid="stHeader"], footer { display: none !important; }
   div[data-testid="stStatusWidget"] { display: none !important; }
   div[data-testid="stDecoration"] { display: none !important; }
-  [data-testid="column"] { padding-left: 8px !important; padding-right: 8px !important; }
+
+  /* Columns: remove default top spacing and align content to top */
+  [data-testid="column"] {
+    padding-left: 8px !important;
+    padding-right: 8px !important;
+    margin-top: 0 !important;
+    align-self: flex-start !important;
+  }
+
   .stMarkdown, .stMarkdown p { margin: 0 !important; }
   img.graph-img {
     width: 100%;
@@ -43,19 +51,20 @@ css = """
     display: block;
     border-radius: 6px;
   }
+
   /* App background */
-  .stApp {
-    background-color: #171717; /* dark */
-  }
-  /* USACE card background */
+  .stApp { background-color: #171717; }
+
+  /* USACE card (same height as graphs) */
   .usace-card {
-    background-color: #303030; /* light */
+    background-color: #303030;
     padding: 12px;
-    height: 40vh;             /* tweak to 46vh if you want exact match */
+    height: 46vh;               /* match graph height */
     display: flex;
     flex-direction: column;
     justify-content: flex-start;
     border-radius: 6px;
+    box-sizing: border-box;
   }
 </style>
 """
@@ -82,7 +91,7 @@ data.append({
 usace = fetch_usace_brookville_data()
 
 # --- LAYOUT ---
-bucket_15m = int(time.time() // (15 * 60))  # cache-buster
+bucket_15m = int(time.time() // (15 * 60))  # cache-buster for USGS images
 
 # Row 1: 3 graphs
 cols_top = st.columns(3)

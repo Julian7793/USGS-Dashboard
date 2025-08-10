@@ -19,10 +19,11 @@ def format_delta(delta, unit):
 # --- PAGE CONFIG ---
 st.set_page_config(page_title="USGS Water Graphs", layout="wide")
 
-# --- STYLE: remove all padding/margins & header/footer ---
+# --- STYLE: remove padding, header/footer, status bar, and top line ---
 st.markdown(
     """
     <style>
+      /* Remove all Streamlit default padding/margins */
       .block-container {
         padding-top: 0 !important;
         padding-bottom: 0 !important;
@@ -31,14 +32,13 @@ st.markdown(
         max-width: 1920px !important;
       }
       header[data-testid="stHeader"], footer { display: none !important; }
-      div[data-testid="stVerticalBlock"] > div:first-child {
-        margin-top: 0 !important; padding-top: 0 !important;
-      }
+      div[data-testid="stStatusWidget"] { display: none !important; } /* status bar */
+      div[data-testid="stDecoration"] { display: none !important; } /* colored top line */
       [data-testid="column"] { padding-left: 8px !important; padding-right: 8px !important; }
       .stMarkdown, .stMarkdown p { margin: 0 !important; }
       img.graph-img {
         width: 100%;
-        height: 46vh;           /* fits two rows exactly */
+        height: 46vh;
         max-height: 46vh;
         object-fit: contain;
         display: block;
@@ -48,40 +48,37 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# --- AUTOREFRESH (whole app) ---
-# Keep a modest cadence (5 min) since USGS posts ~every 15 min and USACE is fresh each rerun
+# --- AUTOREFRESH ---
 REFRESH_INTERVAL = 300
 st_autorefresh(interval=REFRESH_INTERVAL * 1000, limit=None, key="autorefresh")
 
-# --- USGS: fetch + cache (to avoid extra work each rerun) ---
+# --- USGS GRAPHS (cached) ---
 @st.cache_data(ttl=3600, show_spinner=False)
 def get_usgs_graphs():
     return fetch_site_graphs()
 
 data = get_usgs_graphs()
 
-# Add custom site manually (unchanged)
+# Add custom site manually
 data.append({
     "title": "East Fork Whitewater River near Abington",
     "page_url": "https://waterdata.usgs.gov/monitoring-location/USGS-03274615",
     "image_url": "https://waterdata.usgs.gov/nwisweb/graph?agency_cd=USGS&site_no=03274615&parm_cd=00065&period=7"
 })
 
-# --- USACE: ALWAYS refetch on rerun (no cache) ---
+# --- USACE DATA (always refetch) ---
 usace = fetch_usace_brookville_data()
 
 # --- 3×2 GRID ---
 cols = st.columns(3)
 graph_count = 0
 
-# cache-buster so the browser grabs fresh USGS images only when new data likely exists
-bucket_15m = int(time.time() // (15 * 60))  # changes every 15 minutes
+bucket_15m = int(time.time() // (15 * 60))
 
 for idx in range(5):
     with cols[idx % 3]:
         if graph_count < len(data) and data[graph_count].get("image_url"):
             img_url = data[graph_count]["image_url"]
-            # append cache-buster (handles whether "?" already present)
             sep = "&" if "?" in img_url else "?"
             img_url_cb = f"{img_url}{sep}_cb={bucket_15m}"
             st.markdown(
@@ -129,6 +126,6 @@ with cols[2]:
     else:
         st.error("⚠️ Could not load Brookville Reservoir data.")
 
-# --- LAST UPDATED FOOTER ---
+# --- LAST UPDATED FOOTER (no emoji) ---
 updated_time = datetime.now().strftime('%Y-%m-%d %I:%M %p')
-st.caption(f"🔄 Last updated: {updated_time}")
+st.caption(f"Last updated: {updated_time}")

@@ -1,5 +1,6 @@
 import re
 import requests
+from typing import Optional, Tuple
 
 # -------------------------------
 # USGS sites to show as graphs
@@ -38,8 +39,8 @@ def fetch_site_graphs():
 # USACE Brookville data scraping
 # -------------------------------
 USACE_URLS = [
-    "https://water.usace.army.mil/overview/lrl/locations/brookville",
     "https://water.sec.usace.army.mil/overview/lrl/locations/brookville",
+    "https://water.usace.army.mil/overview/lrl/locations/brookville",
 ]
 
 UA_HEADERS = {
@@ -53,9 +54,10 @@ UA_HEADERS = {
     "Pragma": "no-cache",
 }
 
-# Numbers like 57, 1,234, 56.86, -901
+# Regex helpers
 NUM_RE = re.compile(r"(-?\d{1,3}(?:,\d{3})*(?:\.\d+)?|-?\d+(?:\.\d+)?)")
-TAG_RE = re.compile(r"<[^>]+>")  # strip HTML tags
+TAG_RE = re.compile(r"<[^>]+>")  # strip HTML tags (robust unit matching)
+WS_RE = re.compile(r"\s+")
 
 def _to_float(s):
     if s is None:
@@ -65,52 +67,57 @@ def _to_float(s):
     except Exception:
         return None
 
-def _format_val(num, unit):
+def _fmt(num: Optional[float], unit: str) -> Optional[str]:
     if num is None:
         return None
     return f"{num:.2f} {unit}"
 
-def _sanitize_precip_value(num, unit: str):
-    # Treat USACE negative sentinel (e.g., -901) as "no data"
+def _sanitize_precip(num: Optional[float], unit: str) -> Optional[str]:
     if num is None:
         return None
     if num <= -900:
         return "0.00 in"  # change to "N/A" if you prefer
     return f"{num:.2f} {unit}"
 
-def _get_html():
+def _get_html() -> Optional[str]:
     for url in USACE_URLS:
         try:
             r = requests.get(url, headers=UA_HEADERS, timeout=25)
             r.raise_for_status()
             html = r.text
-            if html and len(html) > 1000:  # avoid WAF shells
+            # Write for diagnostics so we can inspect what your Pi actually got
+            try:
+                with open("/tmp/usace_brookville.html", "w", encoding="utf-8") as f:
+                    f.write(html)
+            except Exception:
+                pass
+            if html and len(html) > 1000:
                 return html
         except Exception:
             continue
     return None
 
-def _find_label_block(html: str, label: str, window: int = 2400) -> str | None:
-    """Take a slice starting at label for parsing."""
+def _find_label_block(html: str, label: str, window: int = 10000) -> Optional[str]:
     i = html.lower().find(label.lower())
     if i == -1:
         return None
-    return html[i: i + window]
+    j = min(len(html), i + window)
+    return html[i:j]
 
-def _clean_text(block: str) -> str:
-    """Remove tags and collapse whitespace for robust unit matching."""
+def _clean(block: Optional[str]) -> str:
     if not block:
         return ""
+    # Strip tags, normalize whitespace and punctuation spacing
     txt = TAG_RE.sub(" ", block)
-    txt = re.sub(r"\s+", " ", txt).strip()
+    txt = WS_RE.sub(" ", txt).strip()
+    # Normalize weird hyphens, NBSP etc.
+    txt = txt.replace("\u00a0", " ").replace("–", "-").replace("—", "-")
     return txt
 
-def _unit_index(clean_block: str, unit_words: list[str]) -> tuple[int, str] | None:
-    """Find first occurrence of any unit word (word boundary); return (index, normalized_unit)."""
+def _unit_index(clean_block: str, unit_words: list[str]) -> Optional[Tuple[int, str]]:
     lowest = None
     which = None
     for u in unit_words:
-        # use word boundary to avoid partial matches (e.g., 'in' in 'minutes')
         m = re.search(rf"\b{re.escape(u)}\b", clean_block, flags=re.IGNORECASE)
         if m:
             j = m.start()
@@ -130,50 +137,45 @@ def _unit_index(clean_block: str, unit_words: list[str]) -> tuple[int, str] | No
         u_norm = "in"
     return lowest, u_norm
 
-def _value_before_unit(clean_block: str, unit_idx: int):
-    """Last number that appears BEFORE the unit token."""
+def _value_before_unit(clean_block: str, unit_idx: int) -> Optional[float]:
     left = clean_block[:unit_idx]
     nums = NUM_RE.findall(left)
     if not nums:
         return None
     return _to_float(nums[-1])
 
-def _delta_after_unit(clean_block: str, unit_end_idx: int, value_num: float | None):
-    """
-    Pick a 'delta' from numbers AFTER the unit token.
-      - ignore obvious years (>= 1900)
-      - prefer a number with a decimal
-      - otherwise pick the last remaining number that's not equal to the main value
-    """
+def _delta_after_unit(clean_block: str, unit_end_idx: int, main_val: Optional[float]) -> Optional[float]:
     right = clean_block[unit_end_idx:]
     nums = [ _to_float(n) for n in NUM_RE.findall(right) ]
+    # Filter out years and timestamps (>= 1900), keep distinct from main value
     cand = [n for n in nums if n is not None and n < 1900]
+    # Prefer decimals (24h deltas often decimal)
     decimals = [n for n in cand if abs(n - int(n)) > 1e-9]
     seq = decimals if decimals else cand
     if not seq:
         return None
     for n in reversed(seq):
-        if value_num is None or abs(n - value_num) > 1e-9:
+        if main_val is None or abs(n - main_val) > 1e-9:
             return n
     return seq[-1]
 
 def _parse_metric(html: str, label: str, unit_words: list[str], default_unit: str):
     """
-    Parse by:
-      1) taking a label-local block,
-      2) stripping tags,
-      3) locating a unit word,
-      4) value = last number BEFORE unit,
-      5) delta = a reasonable number AFTER unit.
+    Strategy:
+      1) Take a large label-local block (10k chars).
+      2) Strip tags so units split by tags still match.
+      3) Find a unit word.
+      4) value = last number BEFORE unit; delta = reasonable number AFTER unit.
+      5) Fallback: first two numbers in the cleaned block.
     """
-    block = _find_label_block(html, label)
-    if not block:
+    block = _find_label_block(html, label, window=10000)
+    clean = _clean(block)
+
+    if not clean:
         return None, None, default_unit
-    clean = _clean_text(block)
 
     up = _unit_index(clean, unit_words)
     if not up:
-        # no unit token found: fall back to first two numbers
         nums = [ _to_float(n) for n in NUM_RE.findall(clean) ]
         val = nums[0] if nums else None
         delta = nums[1] if len(nums) >= 2 else None
@@ -197,6 +199,7 @@ def fetch_usace_brookville_data():
     try:
         html = _get_html()
         if not html:
+            print("USACE fetch: no HTML (all metrics -> None)")
             return {
                 "elevation": None, "elevation_delta": None, "elevation_unit": "ft",
                 "inflow": None, "inflow_delta": None, "inflow_unit": "cfs",
@@ -207,27 +210,31 @@ def fetch_usace_brookville_data():
 
         # Elevation
         v, d, u = _parse_metric(html, "Elevation", ["ft", "feet"], "ft")
-        elevation = _format_val(v, u)
+        elevation = _fmt(v, u)
         elevation_delta = d
 
         # Inflow
         v, d, u = _parse_metric(html, "Inflow", ["cfs"], "cfs")
-        inflow = _format_val(v, u)
+        inflow = _fmt(v, u)
         inflow_delta = d
 
         # Outflow
         v, d, u = _parse_metric(html, "Outflow", ["cfs"], "cfs")
-        outflow = _format_val(v, u)
+        outflow = _fmt(v, u)
         outflow_delta = d
 
         # Storage
         v, d, u = _parse_metric(html, "Storage", ["ac-ft", "acre-ft", "ac ft", "acft"], "ac-ft")
-        storage = _format_val(v, u)
+        storage = _fmt(v, u)
         storage_delta = d
 
         # Precipitation (sanitize sentinels)
         v, _d, u = _parse_metric(html, "Precipitation", ["in"], "in")
-        precipitation = _sanitize_precip_value(v, u)
+        precipitation = _sanitize_precip(v, u)
+
+        # Basic diagnostics if anything is None
+        if any(x is None for x in [elevation, inflow, outflow, storage, precipitation]):
+            print("USACE parse warning: one or more fields None. See /tmp/usace_brookville.html for the raw page.")
 
         return {
             "elevation": elevation,

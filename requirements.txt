@@ -4,3 +4,4 @@ streamlit-extras
 requests
 python-dotenv
 pandas
+matplotlib

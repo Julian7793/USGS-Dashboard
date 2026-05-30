@@ -7,6 +7,67 @@ site_info = [
     {"site_no": "03275990", "title": "Brookville Lake at Brookville, IN - 03275990", "parm_cd": "62614"},
 ]
 
+USGS_IV_URL = "https://waterservices.usgs.gov/nwis/iv/"
+REQUEST_HEADERS = {
+    "Accept": "application/json",
+    "User-Agent": "USGS-Dashboard/1.0 (+https://waterservices.usgs.gov/)",
+}
+
+
+def fetch_usgs_timeseries(site_no, parm_cd, period_days=7):
+    """Return recent USGS instantaneous values for one site/parameter.
+
+    The dashboard used to embed PNGs from ``waterdata.usgs.gov/nwisweb/graph``
+    directly in the browser. Those image URLs are brittle because a browser,
+    ad-blocker, proxy, or upstream change can prevent them from loading even
+    though the underlying data is available. Fetching the JSON data server-side
+    lets the app render consistent local graphs instead.
+    """
+
+    params = {
+        "format": "json",
+        "sites": site_no,
+        "parameterCd": parm_cd,
+        "period": f"P{period_days}D",
+        "siteStatus": "all",
+    }
+    response = requests.get(USGS_IV_URL, params=params, headers=REQUEST_HEADERS, timeout=20)
+    response.raise_for_status()
+    payload = response.json()
+
+    series = payload.get("value", {}).get("timeSeries", [])
+    if not series:
+        return {
+            "points": [],
+            "unit": "",
+            "description": "",
+        }
+
+    first_series = series[0]
+    variable = first_series.get("variable", {})
+    unit = variable.get("unit", {}).get("unitCode") or ""
+    description = variable.get("variableDescription") or ""
+    values_groups = first_series.get("values", [])
+
+    points = []
+    for group in values_groups:
+        for point in group.get("value", []):
+            timestamp = point.get("dateTime")
+            value = point.get("value")
+            if timestamp is None or value in (None, ""):
+                continue
+            try:
+                points.append((timestamp, float(value)))
+            except (TypeError, ValueError):
+                continue
+
+    return {
+        "points": points,
+        "unit": unit,
+        "description": description,
+    }
+
+
 def fetch_site_graphs():
     site_data = []
 
@@ -21,11 +82,13 @@ def fetch_site_graphs():
         site_data.append({
             "site_no": site_no,
             "title": title,
+            "parm_cd": parm_cd,
             "image_url": image_url,
             "page_url": page_url
         })
 
     return site_data
+
 
 def fetch_usace_brookville_data():
     """Fetch Brookville Lake metrics from the USACE reporting API.

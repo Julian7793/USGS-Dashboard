@@ -1,6 +1,6 @@
 import base64
+from html import escape
 from io import BytesIO
-import time
 from datetime import datetime, timedelta, timezone
 import requests
 import streamlit as st
@@ -15,7 +15,121 @@ try:
 except Exception:
     MATPLOTLIB_OK = False
 
-from scraper import fetch_site_graphs, fetch_usace_brookville_data
+from scraper import fetch_site_graphs, fetch_usace_brookville_data, fetch_usgs_timeseries
+
+
+def _fig_to_data_uri(fig):
+    """Serialize a matplotlib figure to a PNG data URI for reliable embedding."""
+    buff = BytesIO()
+    fig.savefig(buff, format="png", dpi=150, bbox_inches="tight")
+    plt.close(fig)
+    return "data:image/png;base64," + base64.b64encode(buff.getvalue()).decode("ascii")
+
+
+def _render_error_graph(site):
+    """Display a same-sized fallback card when a USGS graph cannot be rendered."""
+    title = escape(site.get("title", "USGS graph"))
+    page_url = escape(site.get("page_url", ""), quote=True)
+    link_html = f"<a href='{page_url}' target='_blank' rel='noopener noreferrer'>Open USGS site page</a>" if page_url else ""
+    st.markdown(
+        f"""
+        <div class="graph-card">
+          <strong>{title}</strong>
+          <div>⚠️ Could not load graph data from USGS right now.</div>
+          <div>{link_html}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def _usgs_graph_data_uri(site, days=7):
+    """Build a local graph image from USGS JSON data.
+
+    Returning a data URI avoids relying on browser-side loading of the legacy
+    USGS graph image endpoint, which is the part that commonly fails in the
+    dashboard while the source data remains available.
+    """
+    if not MATPLOTLIB_OK:
+        return None
+
+    try:
+        graph_data = fetch_usgs_timeseries(site["site_no"], site["parm_cd"], period_days=days)
+    except Exception as exc:
+        print(f"USGS graph fetch failed for {site.get('site_no')}: {exc}")
+        return None
+
+    points = graph_data.get("points", [])
+    if not points:
+        return None
+
+    xs, ys = [], []
+    for t_iso, value in points:
+        try:
+            xs.append(datetime.fromisoformat(str(t_iso).replace("Z", "+00:00")))
+            ys.append(float(value))
+        except (TypeError, ValueError):
+            continue
+
+    if not xs:
+        return None
+
+    unit = graph_data.get("unit") or ""
+    description = graph_data.get("description") or "Gage height"
+
+    fig = plt.figure(figsize=(7.2, 3.6), dpi=150)
+    ax = fig.add_subplot(111)
+    fig.patch.set_facecolor("#303030")
+    ax.set_facecolor("#303030")
+    ax.grid(True, color="#555555", linewidth=0.6, alpha=0.6)
+    ax.plot(xs, ys, linewidth=1.8, color="#4EA3F1")
+
+    ax.set_title(site.get("title", "USGS graph"), color="#F0F0F0", pad=8, fontsize=10)
+    ylabel = f"{description} ({unit})" if unit else description
+    ax.set_ylabel(ylabel, color="#DDDDDD", fontsize=8)
+    ax.tick_params(colors="#DDDDDD", labelsize=8)
+    ax.spines["bottom"].set_color("#777777")
+    ax.spines["left"].set_color("#777777")
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+
+    latest_time = xs[-1].strftime("%m/%d %H:%M")
+    latest_value = f"{ys[-1]:.2f} {unit}".strip()
+    ax.text(
+        0.99,
+        0.02,
+        f"Latest: {latest_value} at {latest_time}",
+        transform=ax.transAxes,
+        ha="right",
+        va="bottom",
+        color="#DDDDDD",
+        fontsize=8,
+        bbox={"facecolor": "#303030", "edgecolor": "#777777", "alpha": 0.85, "pad": 3},
+    )
+
+    fig.autofmt_xdate(rotation=25, ha="right")
+    fig.tight_layout(pad=1)
+    return _fig_to_data_uri(fig)
+
+
+@st.cache_data(ttl=900, show_spinner=False)
+def get_usgs_graph_image(site_no, parm_cd, title, page_url):
+    """Cache rendered USGS graph images independently of the site list."""
+    site = {"site_no": site_no, "parm_cd": parm_cd, "title": title, "page_url": page_url}
+    return _usgs_graph_data_uri(site)
+
+
+def render_usgs_graph(site):
+    graph_uri = get_usgs_graph_image(
+        site.get("site_no"),
+        site.get("parm_cd"),
+        site.get("title"),
+        site.get("page_url"),
+    )
+    if graph_uri:
+        st.markdown(f"<img src='{graph_uri}' class='graph-img'>", unsafe_allow_html=True)
+    else:
+        _render_error_graph(site)
 
 def format_delta(delta, unit):
     """Return HTML snippet showing 24 hour change with color coding."""
@@ -62,7 +176,22 @@ css = """
     object-fit: contain;
     display: block;
     border-radius: 6px;
+    background-color: #303030;
   }
+  .graph-card {
+    height: 46vh;
+    max-height: 46vh;
+    background-color: #303030;
+    border-radius: 6px;
+    padding: 16px;
+    box-sizing: border-box;
+    color: #DDDDDD;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 8px;
+  }
+  .graph-card a { color: #8AB4F8; }
 
   /* App background */
   .stApp { background-color: #171717; }
@@ -94,7 +223,9 @@ def get_usgs_graphs():
 
 data = get_usgs_graphs()
 data.append({
+    "site_no": "03274615",
     "title": "East Fork Whitewater River near Abington",
+    "parm_cd": "00065",
     "page_url": "https://waterdata.usgs.gov/monitoring-location/USGS-03274615",
     "image_url": "https://waterdata.usgs.gov/nwisweb/graph?agency_cd=USGS&site_no=03274615&parm_cd=00065&period=7"
 })
@@ -233,27 +364,18 @@ def _io_graph_data_uri(days=7):
     fig.tight_layout(pad=1)
 
     # to PNG bytes → data URI
-    buff = BytesIO()
-    fig.savefig(buff, format="png", dpi=150, bbox_inches="tight")
-    plt.close(fig)
-    img_bytes = buff.getvalue()
-    return "data:image/png;base64," + base64.b64encode(img_bytes).decode("ascii")
+    return _fig_to_data_uri(fig)
 
 # --- LAYOUT ---
-bucket_15m = int(time.time() // (15 * 60))  # cache-buster for USGS images
-
 # Row 1: 3 graphs
 cols_top = st.columns(3)
 graph_idx = 0
 for i in range(3):
     with cols_top[i]:
-        if graph_idx < len(data) and data[graph_idx].get("image_url"):
-            img_url = data[graph_idx]["image_url"]
-            sep = "&" if "?" in img_url else "?"
-            img_url_cb = f"{img_url}{sep}_cb={bucket_15m}"
-            st.markdown(f"<img src='{img_url_cb}' class='graph-img'>", unsafe_allow_html=True)
+        if graph_idx < len(data):
+            render_usgs_graph(data[graph_idx])
         else:
-            st.warning("⚠️ No image found.")
+            st.warning("⚠️ No graph configured.")
         graph_idx += 1
 
 # Row 2: 2 graphs + USACE box
@@ -261,13 +383,10 @@ cols_bottom = st.columns(3)
 
 for i in range(2):
     with cols_bottom[i]:
-        if graph_idx < len(data) and data[graph_idx].get("image_url"):
-            img_url = data[graph_idx]["image_url"]
-            sep = "&" if "?" in img_url else "?"
-            img_url_cb = f"{img_url}{sep}_cb={bucket_15m}"
-            st.markdown(f"<img src='{img_url_cb}' class='graph-img'>", unsafe_allow_html=True)
+        if graph_idx < len(data):
+            render_usgs_graph(data[graph_idx])
         else:
-            st.warning("⚠️ No image found.")
+            st.warning("⚠️ No graph configured.")
         graph_idx += 1
 
 # Right cell: complete USACE panel in one HTML block (title + metrics + embedded graph)

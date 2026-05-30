@@ -63,16 +63,23 @@ def _usgs_graph_data_uri(site, days=7):
     if not points:
         return None
 
-    xs, ys = [], []
+    parsed_points = []
     for t_iso, value in points:
         try:
-            xs.append(datetime.fromisoformat(str(t_iso).replace("Z", "+00:00")))
-            ys.append(float(value))
+            timestamp = datetime.fromisoformat(str(t_iso).replace("Z", "+00:00"))
+            parsed_points.append((timestamp, float(value)))
         except (TypeError, ValueError):
             continue
 
-    if not xs:
+    if not parsed_points:
         return None
+
+    # USGS can return the newest observation ahead of the historical values.
+    # Matplotlib connects points in the order provided, so sort by timestamp to
+    # prevent a stray diagonal segment from latest -> oldest across the chart.
+    parsed_points.sort(key=lambda point: point[0])
+    xs = [timestamp for timestamp, _ in parsed_points]
+    ys = [value for _, value in parsed_points]
 
     unit = graph_data.get("unit") or ""
     description = graph_data.get("description") or "Gage height"

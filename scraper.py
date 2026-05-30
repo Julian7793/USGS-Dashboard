@@ -1,3 +1,5 @@
+from datetime import datetime, timezone
+
 import requests
 
 site_info = [
@@ -60,6 +62,17 @@ def fetch_usgs_timeseries(site_no, parm_cd, period_days=7):
                 points.append((timestamp, float(value)))
             except (TypeError, ValueError):
                 continue
+
+    def timestamp_epoch(point):
+        try:
+            timestamp = datetime.fromisoformat(str(point[0]).replace("Z", "+00:00"))
+            if timestamp.tzinfo is None:
+                timestamp = timestamp.replace(tzinfo=timezone.utc)
+            return timestamp.timestamp()
+        except (TypeError, ValueError):
+            return float("inf")
+
+    points.sort(key=timestamp_epoch)
 
     return {
         "points": points,

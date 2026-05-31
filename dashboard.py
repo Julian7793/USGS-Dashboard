@@ -218,8 +218,8 @@ css = """
   .stMarkdown, .stMarkdown p { margin: 0 !important; }
   img.graph-img {
     width: 100%;
-    height: calc((100vh - 58px) / 2 - 24px);
-    max-height: calc((100vh - 58px) / 2 - 24px);
+    height: calc((100vh - 82px) / 2 - 24px);
+    max-height: calc((100vh - 82px) / 2 - 24px);
     object-fit: contain;
     display: block;
     margin: 0 auto 2px auto;
@@ -235,8 +235,8 @@ css = """
   }
   .graph-card {
     width: calc(100% - 4px);
-    height: calc((100vh - 58px) / 2);
-    max-height: calc((100vh - 58px) / 2);
+    height: calc((100vh - 82px) / 2);
+    max-height: calc((100vh - 82px) / 2);
     margin: 2px auto;
     background-color: #303030;
     border-radius: 6px;
@@ -264,7 +264,7 @@ css = """
     margin: 2px auto;
     background-color: #303030;
     padding: 8px;
-    height: calc((100vh - 58px) / 2); /* match graph height with spacing on 1920x1080 */
+    height: calc((100vh - 82px) / 2); /* match graph height while avoiding page scrollbar */
     display: flex;
     flex-direction: column;
     justify-content: flex-start;

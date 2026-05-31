@@ -11,11 +11,36 @@ try:
     import matplotlib
     matplotlib.use("Agg")  # headless backend for servers
     import matplotlib.pyplot as plt
+    import matplotlib.dates as mdates
     MATPLOTLIB_OK = True
 except Exception:
     MATPLOTLIB_OK = False
 
 from scraper import fetch_site_graphs, fetch_usace_brookville_data, fetch_usgs_timeseries
+
+
+DISPLAY_TIMEZONE = timezone(timedelta(hours=-5))
+DISPLAY_TIMEZONE_LABEL = "UTC-5"
+DISPLAY_TIME_FORMAT = "%m/%d %I:%M %p"
+LAST_UPDATED_TIME_FORMAT = "%Y-%m-%d %I:%M %p"
+
+
+def _to_display_timezone(timestamp):
+    """Return ``timestamp`` in the fixed UTC-5 display timezone."""
+    if timestamp.tzinfo is None:
+        timestamp = timestamp.replace(tzinfo=timezone.utc)
+    return timestamp.astimezone(DISPLAY_TIMEZONE)
+
+
+def _format_display_time(timestamp, time_format=DISPLAY_TIME_FORMAT):
+    """Format a timestamp for the dashboard using UTC-5 and 12-hour time."""
+    return f"{_to_display_timezone(timestamp).strftime(time_format)} {DISPLAY_TIMEZONE_LABEL}"
+
+
+def _set_utc_minus_five_axis(ax):
+    """Format chart x-axis ticks in fixed UTC-5, 12-hour time."""
+    ax.xaxis.set_major_formatter(mdates.DateFormatter(DISPLAY_TIME_FORMAT, tz=DISPLAY_TIMEZONE))
+    ax.set_xlabel(f"Time ({DISPLAY_TIMEZONE_LABEL})", color="#DDDDDD", fontsize=8)
 
 
 def _fig_to_data_uri(fig):
@@ -67,7 +92,7 @@ def _usgs_graph_data(site, days=7):
     for t_iso, value in points:
         try:
             timestamp = datetime.fromisoformat(str(t_iso).replace("Z", "+00:00"))
-            parsed_points.append((timestamp, float(value)))
+            parsed_points.append((_to_display_timezone(timestamp), float(value)))
         except (TypeError, ValueError):
             continue
 
@@ -100,7 +125,9 @@ def _usgs_graph_data(site, days=7):
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
 
-    latest_time = xs[-1].strftime("%m/%d %H:%M")
+    _set_utc_minus_five_axis(ax)
+
+    latest_time = _format_display_time(xs[-1])
     latest_value = f"{ys[-1]:.2f} {unit}".strip()
     latest_text = f"Latest: {latest_value} at {latest_time}"
 
@@ -358,7 +385,7 @@ def _io_graph_data_uri(days=7):
         for t_iso, v in series:
             try:
                 t = datetime.fromisoformat(str(t_iso).replace("Z", "+00:00"))
-                xs.append(t)
+                xs.append(_to_display_timezone(t))
                 ys.append(float(v))
             except Exception:
                 continue
@@ -383,6 +410,7 @@ def _io_graph_data_uri(days=7):
     ax.tick_params(colors="#DDDDDD")
     ax.spines["bottom"].set_color("#777777")
     ax.spines["left"].set_color("#777777")
+    _set_utc_minus_five_axis(ax)
     ax.set_title("Inflow / Outflow (last 7 days)", color="#DDDDDD", pad=4, fontsize=10)
     ax.legend(loc="upper right", facecolor="#404040", edgecolor="#777777", labelcolor="#DDDDDD", fontsize=8)
 
@@ -469,5 +497,5 @@ with cols_bottom[2]:
         )
 
 # --- LAST UPDATED FOOTER ---
-updated_time = datetime.now().strftime('%Y-%m-%d %I:%M %p')
+updated_time = _format_display_time(datetime.now(timezone.utc), LAST_UPDATED_TIME_FORMAT)
 st.caption(f"Last updated: {updated_time}")

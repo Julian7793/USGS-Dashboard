@@ -127,7 +127,7 @@ def _usgs_graph_data(site, days=7):
     ax.grid(True, color="#555555", linewidth=0.6, alpha=0.6)
     ax.plot(xs, ys, linewidth=1.8, color="#4EA3F1")
 
-    ax.set_title(site.get("title", "USGS graph"), color="#F0F0F0", pad=8, fontsize=10)
+    ax.set_title(site.get("title", "USGS graph"), color="#F0F0F0", pad=2, fontsize=10)
     ylabel = f"{description} ({unit})" if unit else description
     ax.set_ylabel(ylabel, color="#DDDDDD", fontsize=8)
     ax.tick_params(colors="#DDDDDD", labelsize=8)
@@ -143,7 +143,7 @@ def _usgs_graph_data(site, days=7):
     latest_text = f"Latest: {latest_value} at {latest_time}"
 
     fig.autofmt_xdate(rotation=25, ha="right")
-    fig.tight_layout(pad=1)
+    fig.tight_layout(pad=0.35)
     return {"image_uri": _fig_to_data_uri(fig), "latest_text": latest_text}
 
 
@@ -196,7 +196,7 @@ st.set_page_config(page_title="USGS Water Graphs", layout="wide")
 css = """
 <style>
   .block-container {
-    padding-top: 2px !important;
+    padding-top: 0 !important;
     padding-bottom: 0 !important;
     padding-left: 4px !important;
     padding-right: 4px !important;
@@ -204,6 +204,9 @@ css = """
     background: transparent !important;
   }
   header[data-testid="stHeader"], footer { display: none !important; }
+  div[data-testid="stAppViewBlockContainer"] {
+    padding-top: 0 !important;
+  }
   div[data-testid="stStatusWidget"] { display: none !important; }
   div[data-testid="stDecoration"] { display: none !important; }
 
@@ -218,11 +221,11 @@ css = """
   .stMarkdown, .stMarkdown p { margin: 0 !important; }
   img.graph-img {
     width: 100%;
-    height: calc((100vh - 82px) / 2 - 24px);
-    max-height: calc((100vh - 82px) / 2 - 24px);
+    height: calc((100vh - 64px) / 2 - 20px);
+    max-height: calc((100vh - 64px) / 2 - 20px);
     object-fit: contain;
     display: block;
-    margin: 0 auto 2px auto;
+    margin: 0 auto 1px auto;
     border-radius: 6px;
   }
   .latest-info {
@@ -235,12 +238,12 @@ css = """
   }
   .graph-card {
     width: calc(100% - 4px);
-    height: calc((100vh - 82px) / 2);
-    max-height: calc((100vh - 82px) / 2);
-    margin: 2px auto;
+    height: calc((100vh - 64px) / 2);
+    max-height: calc((100vh - 64px) / 2);
+    margin: 0 auto 2px auto;
     background-color: #303030;
     border-radius: 6px;
-    padding: 8px;
+    padding: 6px;
     box-sizing: border-box;
     color: #DDDDDD;
     display: flex;
@@ -249,7 +252,7 @@ css = """
     gap: 8px;
   }
   .graph-data-card {
-    padding: 4px;
+    padding: 3px;
     justify-content: flex-start;
     gap: 0;
   }
@@ -261,10 +264,10 @@ css = """
   /* USACE card (same height as graphs) */
   .usace-card {
     width: calc(100% - 4px);
-    margin: 2px auto;
+    margin: 0 auto 2px auto;
     background-color: #303030;
-    padding: 8px;
-    height: calc((100vh - 82px) / 2); /* match graph height while avoiding page scrollbar */
+    padding: 6px;
+    height: calc((100vh - 64px) / 2); /* match graph height while avoiding page scrollbar */
     display: flex;
     flex-direction: column;
     justify-content: flex-start;
@@ -455,10 +458,10 @@ def _usace_io_graph_data_uri(inflow_tsid=None, outflow_tsid=None, days=7):
     right_axis.spines["bottom"].set_color("#777777")
     right_axis.spines["right"].set_color("#777777")
 
-    ax.set_title("Inflow / Outflow", loc="left", color="#F0F0F0", fontsize=10, weight="bold", pad=6)
+    ax.set_title("Inflow / Outflow", loc="left", color="#F0F0F0", fontsize=10, weight="bold", pad=2)
     ax.text(
         0.5,
-        1.03,
+        1.01,
         "Last 7 days from USACE Water Data Timeseries",
         transform=ax.transAxes,
         ha="center",
@@ -480,7 +483,7 @@ def _usace_io_graph_data_uri(inflow_tsid=None, outflow_tsid=None, days=7):
             labelcolor="#DDDDDD",
         )
 
-    fig.tight_layout(pad=0.7)
+    fig.tight_layout(pad=0.35)
     return _fig_to_data_uri(fig)
 
 

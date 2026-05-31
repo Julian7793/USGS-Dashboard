@@ -294,6 +294,22 @@ data.append({
     "image_url": "https://waterdata.usgs.gov/nwisweb/graph?agency_cd=USGS&site_no=03274615&parm_cd=00065&period=7"
 })
 
+# Put the East Fork Whitewater River graph where the Brookville Lake graph
+# previously appeared, and move Brookville Lake into East Fork's former slot.
+brookville_lake_index = next(
+    (index for index, site in enumerate(data) if site.get("site_no") == "03275990"),
+    None,
+)
+east_fork_index = next(
+    (index for index, site in enumerate(data) if site.get("site_no") == "03274615"),
+    None,
+)
+if brookville_lake_index is not None and east_fork_index is not None:
+    data[brookville_lake_index], data[east_fork_index] = (
+        data[east_fork_index],
+        data[brookville_lake_index],
+    )
+
 # --- USACE DATA ---
 # No cache here so it always refetches on rerun
 usace = fetch_usace_brookville_data()

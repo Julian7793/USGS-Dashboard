@@ -43,6 +43,20 @@ def _format_usace_precipitation(value, unit):
     return _format_usace_value(numeric_value, unit)
 
 
+def _format_usace_temperature_f(value, unit):
+    """Format a USACE water temperature value in Fahrenheit."""
+    if value is None:
+        return None
+
+    numeric_value = float(value)
+    normalized_unit = (unit or "").strip().lower()
+    if normalized_unit in {"c", "celsius", "deg c", "degrees celsius", "°c"}:
+        numeric_value = (numeric_value * 9 / 5) + 32
+
+    formatted_value = f"{numeric_value:,.1f}".rstrip("0").rstrip(".")
+    return f"{formatted_value} °F"
+
+
 def _parse_usgs_timestamp(timestamp):
     """Parse a USGS timestamp and normalize naive values to UTC."""
     parsed_timestamp = datetime.fromisoformat(str(timestamp).replace("Z", "+00:00"))
@@ -190,6 +204,7 @@ def fetch_usace_brookville_data():
             "storage_delta": None,
             "storage_unit": None,
             "precipitation": None,
+            "water_temp": None,
             "inflow_tsid": None,
             "outflow_tsid": None,
         }
@@ -215,6 +230,8 @@ def fetch_usace_brookville_data():
                 result["outflow_tsid"] = ts.get("tsid")
             elif label == "precipitation":
                 result["precipitation"] = _format_usace_precipitation(value, unit)
+            elif "water" in label and "temp" in label:
+                result["water_temp"] = _format_usace_temperature_f(value, unit)
             elif "storage" in label and result["storage"] is None:
                 result["storage"] = formatted
                 result["storage_delta"] = delta

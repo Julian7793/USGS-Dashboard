@@ -548,7 +548,7 @@ with cols_bottom[2]:
           {storage_delta_html}
 
           <div style="font-size:125%; margin-top:8px;">
-            Precipitation= {usace.get('precipitation') or 'N/A'}
+            Precipitation 24hr total= {usace.get('precipitation') or 'N/A'} &nbsp;&nbsp; Water Temp= {usace.get('water_temp') or 'N/A'}
           </div>
 
           {f"<img src='{graph_uri}' style='width:100%; height:22vh; object-fit:contain; margin-top:8px; background:#303030; border-radius:4px;'/>" if graph_uri else ""}

@@ -1,7 +1,11 @@
 import unittest
 from unittest.mock import Mock, patch
 
-from scraper import _format_usace_precipitation, fetch_usace_brookville_data
+from scraper import (
+    _format_usace_precipitation,
+    _format_usace_temperature_f,
+    fetch_usace_brookville_data,
+)
 
 
 class FormatUsacePrecipitationTest(unittest.TestCase):
@@ -10,6 +14,14 @@ class FormatUsacePrecipitationTest(unittest.TestCase):
 
     def test_positive_precipitation_keeps_value_and_unit(self):
         self.assertEqual(_format_usace_precipitation(1.25, "in"), "1.25 in")
+
+
+class FormatUsaceTemperatureTest(unittest.TestCase):
+    def test_fahrenheit_temperature_uses_degree_symbol(self):
+        self.assertEqual(_format_usace_temperature_f(68, "F"), "68 °F")
+
+    def test_celsius_temperature_converts_to_fahrenheit(self):
+        self.assertEqual(_format_usace_temperature_f(20, "C"), "68 °F")
 
 
 class FetchUsaceBrookvilleDataTest(unittest.TestCase):
@@ -33,6 +45,11 @@ class FetchUsaceBrookvilleDataTest(unittest.TestCase):
                         "delta24hr": -2,
                         "tsid": "Brookville.Flow-Outflow.Ave.1Hour.1Hour.lrldlb-comp",
                     },
+                    {
+                        "label": "Water Temp",
+                        "latest_value": 20,
+                        "unit": "C",
+                    },
                 ]
             }
         ]
@@ -49,6 +66,7 @@ class FetchUsaceBrookvilleDataTest(unittest.TestCase):
             data["outflow_tsid"],
             "Brookville.Flow-Outflow.Ave.1Hour.1Hour.lrldlb-comp",
         )
+        self.assertEqual(data["water_temp"], "68 °F")
 
 
 if __name__ == "__main__":

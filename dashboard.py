@@ -196,7 +196,9 @@ st.set_page_config(page_title="USGS Water Graphs", layout="wide")
 css = """
 <style>
   :root {
-    --dashboard-card-height: calc((100vh - 140px) / 2);
+    --dashboard-row-gap: 14px;
+    --dashboard-footer-height: 24px;
+    --dashboard-card-height: calc((100vh - 164px - var(--dashboard-row-gap) - var(--dashboard-footer-height)) / 2);
     --dashboard-image-height: calc(var(--dashboard-card-height) - 27px);
     --dashboard-card-spacing: 1px;
   }
@@ -215,7 +217,7 @@ css = """
   }
   div[data-testid="stStatusWidget"] { display: none !important; }
   div[data-testid="stDecoration"] { display: none !important; }
-  div[data-testid="stVerticalBlock"] { gap: 4px !important; }
+  div[data-testid="stVerticalBlock"] { gap: 0 !important; }
   div[data-testid="stElementContainer"] { margin: 0 !important; }
 
   /* Columns: remove default top spacing and align content to top */
@@ -265,6 +267,20 @@ css = """
     gap: 0;
   }
   .graph-card a { color: #8AB4F8; }
+  .dashboard-row-spacer {
+    height: var(--dashboard-row-gap);
+  }
+  .last-updated-footer {
+    height: var(--dashboard-footer-height);
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    color: #BDBDBD;
+    font-size: 0.85rem;
+    line-height: 1;
+    padding-bottom: 2px;
+    box-sizing: border-box;
+  }
 
   html, body, [data-testid="stAppViewContainer"], .stApp {
     overflow: hidden !important;
@@ -504,10 +520,6 @@ def get_usace_inflow_outflow_graph(inflow_tsid, outflow_tsid):
     return _usace_io_graph_data_uri(inflow_tsid, outflow_tsid, days=7)
 
 
-# --- LAST UPDATED HEADER ---
-updated_time = _format_display_time(datetime.now(timezone.utc), LAST_UPDATED_TIME_FORMAT)
-st.caption(f"Last updated: {updated_time}")
-
 # --- LAYOUT ---
 # Row 1: 3 graphs
 cols_top = st.columns(3)
@@ -519,6 +531,8 @@ for i in range(3):
         else:
             st.warning("⚠️ No graph configured.")
         graph_idx += 1
+
+st.markdown('<div class="dashboard-row-spacer"></div>', unsafe_allow_html=True)
 
 # Row 2: 2 graphs + USACE box
 cols_bottom = st.columns(3)
@@ -586,3 +600,10 @@ with cols_bottom[2]:
             """,
             unsafe_allow_html=True,
         )
+
+# --- LAST UPDATED FOOTER ---
+updated_time = _format_display_time(datetime.now(timezone.utc), LAST_UPDATED_TIME_FORMAT)
+st.markdown(
+    f'<div class="last-updated-footer">Last updated: {updated_time}</div>',
+    unsafe_allow_html=True,
+)

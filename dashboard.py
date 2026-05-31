@@ -451,6 +451,8 @@ def _usace_io_graph_data_uri(inflow_tsid=None, outflow_tsid=None, days=7):
     right_axis.yaxis.set_major_formatter(lambda value, _: f"{value:,.0f} cfs")
     right_axis.tick_params(colors="#DDDDDD", labelsize=7)
     right_axis.spines["top"].set_visible(False)
+    right_axis.spines["left"].set_visible(False)
+    right_axis.spines["bottom"].set_color("#777777")
     right_axis.spines["right"].set_color("#777777")
 
     ax.set_title("Inflow / Outflow", loc="left", color="#F0F0F0", fontsize=10, weight="bold", pad=6)
@@ -548,7 +550,7 @@ with cols_bottom[2]:
           {storage_delta_html}
 
           <div style="font-size:125%; margin-top:8px;">
-            Precipitation 24hr total= {usace.get('precipitation') or 'N/A'} &nbsp;&nbsp; Water Temp= {usace.get('water_temp') or 'N/A'}
+            Precipitation 24hr total= {usace.get('precipitation') or 'N/A'}
           </div>
 
           {f"<img src='{graph_uri}' style='width:100%; height:22vh; object-fit:contain; margin-top:8px; background:#303030; border-radius:4px;'/>" if graph_uri else ""}

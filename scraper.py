@@ -16,6 +16,33 @@ REQUEST_HEADERS = {
 }
 
 
+def _parse_usgs_timestamp(timestamp):
+    """Parse a USGS timestamp and normalize naive values to UTC."""
+    parsed_timestamp = datetime.fromisoformat(str(timestamp).replace("Z", "+00:00"))
+    if parsed_timestamp.tzinfo is None:
+        parsed_timestamp = parsed_timestamp.replace(tzinfo=timezone.utc)
+    return parsed_timestamp
+
+
+def _collapse_duplicate_points(point_values_by_timestamp, timestamp_labels):
+    """Return one chronologically sorted value for each observation time.
+
+    Some USGS instantaneous-values responses include more than one value with
+    the exact same timestamp for a site/parameter. Plotting those duplicate
+    timestamps directly makes Matplotlib draw vertical connector segments,
+    which can look like two lines with the space between them filled in.
+    Averaging duplicate observations preserves the overall trend while keeping
+    the graph as a single continuous line.
+    """
+
+    collapsed_points = []
+    for timestamp_key in sorted(point_values_by_timestamp):
+        values = point_values_by_timestamp[timestamp_key]
+        average_value = sum(values) / len(values)
+        collapsed_points.append((timestamp_labels[timestamp_key], average_value))
+    return collapsed_points
+
+
 def fetch_usgs_timeseries(site_no, parm_cd, period_days=7):
     """Return recent USGS instantaneous values for one site/parameter.
 
@@ -51,7 +78,8 @@ def fetch_usgs_timeseries(site_no, parm_cd, period_days=7):
     description = variable.get("variableDescription") or ""
     values_groups = first_series.get("values", [])
 
-    points = []
+    point_values_by_timestamp = {}
+    timestamp_labels = {}
     for group in values_groups:
         for point in group.get("value", []):
             timestamp = point.get("dateTime")
@@ -59,20 +87,16 @@ def fetch_usgs_timeseries(site_no, parm_cd, period_days=7):
             if timestamp is None or value in (None, ""):
                 continue
             try:
-                points.append((timestamp, float(value)))
+                parsed_timestamp = _parse_usgs_timestamp(timestamp)
+                numeric_value = float(value)
             except (TypeError, ValueError):
                 continue
 
-    def timestamp_epoch(point):
-        try:
-            timestamp = datetime.fromisoformat(str(point[0]).replace("Z", "+00:00"))
-            if timestamp.tzinfo is None:
-                timestamp = timestamp.replace(tzinfo=timezone.utc)
-            return timestamp.timestamp()
-        except (TypeError, ValueError):
-            return float("inf")
+            timestamp_key = parsed_timestamp.timestamp()
+            point_values_by_timestamp.setdefault(timestamp_key, []).append(numeric_value)
+            timestamp_labels[timestamp_key] = timestamp
 
-    points.sort(key=timestamp_epoch)
+    points = _collapse_duplicate_points(point_values_by_timestamp, timestamp_labels)
 
     return {
         "points": points,

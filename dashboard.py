@@ -196,11 +196,11 @@ st.set_page_config(page_title="USGS Water Graphs", layout="wide")
 css = """
 <style>
   :root {
-    --dashboard-row-gap: 28px;
-    --dashboard-footer-height: 24px;
+    --dashboard-row-gap: 18px;
+    --dashboard-footer-height: 26px;
     --dashboard-card-padding: 4px;
-    --dashboard-latest-height: 24px;
-    --dashboard-card-height: calc((100vh - 196px - var(--dashboard-row-gap) - var(--dashboard-footer-height)) / 2);
+    --dashboard-latest-height: 28px;
+    --dashboard-card-height: calc((100vh - 84px - var(--dashboard-row-gap) - var(--dashboard-footer-height)) / 2);
     --dashboard-image-height: calc(
       var(--dashboard-card-height) - var(--dashboard-latest-height) - (2 * var(--dashboard-card-padding))
     );
@@ -223,6 +223,10 @@ css = """
   div[data-testid="stDecoration"] { display: none !important; }
   div[data-testid="stVerticalBlock"] { gap: 0 !important; }
   div[data-testid="stElementContainer"] { margin: 0 !important; }
+  div[data-testid="stElementContainer"]:has(.dashboard-row-spacer) {
+    height: var(--dashboard-row-gap) !important;
+    min-height: var(--dashboard-row-gap) !important;
+  }
 
   /* Columns: remove default top spacing and align content to top */
   [data-testid="column"] {
@@ -278,7 +282,8 @@ css = """
   }
   .graph-card a { color: #8AB4F8; }
   .dashboard-row-spacer {
-    height: var(--dashboard-row-gap);
+    height: var(--dashboard-row-gap) !important;
+    min-height: var(--dashboard-row-gap) !important;
   }
   .last-updated-footer {
     height: var(--dashboard-footer-height);
@@ -290,6 +295,7 @@ css = """
     line-height: 1;
     padding-bottom: 2px;
     box-sizing: border-box;
+    background: transparent;
   }
 
   html, body, [data-testid="stAppViewContainer"], .stApp {
@@ -312,6 +318,34 @@ css = """
     border-radius: 6px;
     box-sizing: border-box;
     overflow: hidden;           /* keep the card tidy */
+  }
+  .usace-card h3 {
+    margin: 0 0 8px 0;
+  }
+  .usace-metric {
+    font-size: 125%;
+  }
+  .usace-section {
+    margin-bottom: 8px;
+  }
+  .usace-flow-row {
+    display: flex;
+    gap: 24px;
+    margin-bottom: 8px;
+  }
+  .usace-flow-row > div {
+    flex: 1;
+  }
+  .usace-graph-img {
+    width: 100%;
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: 230px;
+    object-fit: contain;
+    margin-top: 8px;
+    background: #303030;
+    border-radius: 4px;
+    display: block;
   }
 </style>
 """
@@ -451,7 +485,7 @@ def _usace_io_graph_data_uri(inflow_tsid=None, outflow_tsid=None, days=7):
     if not x_in and not x_out:
         return None
 
-    fig = plt.figure(figsize=(7.6, 2.35), dpi=150)
+    fig = plt.figure(figsize=(7.6, 2.75), dpi=150)
     fig.patch.set_facecolor("#303030")
     ax = fig.add_subplot(111)
     _style_usace_axis(ax)
@@ -513,15 +547,16 @@ def _usace_io_graph_data_uri(inflow_tsid=None, outflow_tsid=None, days=7):
     if handles:
         ax.legend(
             handles=handles,
-            loc="upper center",
-            bbox_to_anchor=(0.5, -0.16),
-            ncol=len(handles),
+            loc="upper right",
+            bbox_to_anchor=(0.98, 0.98),
+            ncol=1,
             frameon=False,
             fontsize=7,
             labelcolor="#DDDDDD",
         )
 
-    fig.tight_layout(pad=0.35)
+    fig.tight_layout(pad=0.45)
+    fig.subplots_adjust(bottom=0.16)
     return _fig_to_data_uri(fig)
 
 
@@ -570,33 +605,33 @@ with cols_bottom[2]:
 
         usace_html = f"""
         <div class="usace-card">
-          <h3 style="margin:0 0 8px 0;">Brookville Lake (USACE Data)</h3>
+          <h3>Brookville Lake (USACE Data)</h3>
 
-          <div style="font-size:125%; margin-bottom:8px;">
+          <div class="usace-metric usace-section">
             Elevation= {usace.get('elevation') or 'N/A'}
           </div>
 
-          <div style="display:flex; gap:24px; margin-bottom:8px;">
-            <div style="flex:1;">
-              <div style="font-size:125%;">Inflow= {usace.get('inflow') or 'N/A'}</div>
+          <div class="usace-flow-row">
+            <div>
+              <div class="usace-metric">Inflow= {usace.get('inflow') or 'N/A'}</div>
               {inflow_delta_html}
             </div>
-            <div style="flex:1;">
-              <div style="font-size:125%;">Outflow= {usace.get('outflow') or 'N/A'}</div>
+            <div>
+              <div class="usace-metric">Outflow= {usace.get('outflow') or 'N/A'}</div>
               {outflow_delta_html}
             </div>
           </div>
 
-          <div style="font-size:125%; margin-bottom:4px;">
+          <div class="usace-metric" style="margin-bottom:4px;">
             Storage= {usace.get('storage') or 'N/A'}
           </div>
           {storage_delta_html}
 
-          <div style="font-size:125%; margin-top:8px;">
+          <div class="usace-metric" style="margin-top:8px;">
             Precipitation 24hr total= {usace.get('precipitation') or 'N/A'}
           </div>
 
-          {f"<img src='{graph_uri}' style='width:100%; height:17vh; object-fit:contain; margin-top:8px; background:#303030; border-radius:4px;'/>" if graph_uri else ""}
+          {f"<img src='{graph_uri}' class='usace-graph-img'/>" if graph_uri else ""}
         </div>
         """
         st.markdown(usace_html, unsafe_allow_html=True)

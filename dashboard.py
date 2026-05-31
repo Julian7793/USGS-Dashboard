@@ -383,13 +383,13 @@ def _series_to_display_xy(series):
 
 
 def _style_usace_axis(ax):
-    ax.set_facecolor("#FFFFFF")
-    ax.grid(True, axis="y", color="#E0E0E0", linewidth=0.6)
-    ax.tick_params(colors="#000000", labelsize=7)
+    ax.set_facecolor("#303030")
+    ax.grid(True, axis="y", color="#555555", linewidth=0.6, alpha=0.6)
+    ax.tick_params(colors="#DDDDDD", labelsize=7)
     ax.spines["top"].set_visible(False)
-    ax.spines["left"].set_color("#333333")
-    ax.spines["bottom"].set_color("#333333")
-    ax.spines["right"].set_color("#333333")
+    ax.spines["left"].set_color("#777777")
+    ax.spines["bottom"].set_color("#777777")
+    ax.spines["right"].set_color("#777777")
 
 
 def _usace_io_graph_data_uri(inflow_tsid=None, outflow_tsid=None, days=7):
@@ -411,7 +411,7 @@ def _usace_io_graph_data_uri(inflow_tsid=None, outflow_tsid=None, days=7):
         return None
 
     fig = plt.figure(figsize=(7.6, 2.35), dpi=150)
-    fig.patch.set_facecolor("#FFFFFF")
+    fig.patch.set_facecolor("#303030")
     ax = fig.add_subplot(111)
     _style_usace_axis(ax)
 
@@ -442,18 +442,18 @@ def _usace_io_graph_data_uri(inflow_tsid=None, outflow_tsid=None, days=7):
     y_max = max(all_values) if all_values else 1
     y_top = max(1, y_max * 1.12)
     ax.set_ylim(bottom=0, top=y_top)
-    ax.set_ylabel("Inflow (cfs)", color="#000000", fontsize=7)
+    ax.set_ylabel("Inflow (cfs)", color="#DDDDDD", fontsize=7)
     ax.yaxis.set_major_formatter(lambda value, _: f"{value:,.0f} cfs")
 
     right_axis = ax.twinx()
     right_axis.set_ylim(ax.get_ylim())
-    right_axis.set_ylabel("Outflow (cfs)", color="#000000", fontsize=7, rotation=270, labelpad=10)
+    right_axis.set_ylabel("Outflow (cfs)", color="#DDDDDD", fontsize=7, rotation=270, labelpad=10)
     right_axis.yaxis.set_major_formatter(lambda value, _: f"{value:,.0f} cfs")
-    right_axis.tick_params(colors="#000000", labelsize=7)
+    right_axis.tick_params(colors="#DDDDDD", labelsize=7)
     right_axis.spines["top"].set_visible(False)
-    right_axis.spines["right"].set_color("#333333")
+    right_axis.spines["right"].set_color("#777777")
 
-    ax.set_title("Inflow / Outflow", loc="left", color="#000000", fontsize=10, weight="bold", pad=6)
+    ax.set_title("Inflow / Outflow", loc="left", color="#F0F0F0", fontsize=10, weight="bold", pad=6)
     ax.text(
         0.5,
         1.03,
@@ -461,7 +461,7 @@ def _usace_io_graph_data_uri(inflow_tsid=None, outflow_tsid=None, days=7):
         transform=ax.transAxes,
         ha="center",
         va="bottom",
-        color="#5A2A2A",
+        color="#DDDDDD",
         fontsize=6.5,
     )
     ax.xaxis.set_major_formatter(mdates.DateFormatter("%d %b", tz=DISPLAY_TIMEZONE))
@@ -475,6 +475,7 @@ def _usace_io_graph_data_uri(inflow_tsid=None, outflow_tsid=None, days=7):
             ncol=len(handles),
             frameon=False,
             fontsize=7,
+            labelcolor="#DDDDDD",
         )
 
     fig.tight_layout(pad=0.7)
@@ -550,7 +551,7 @@ with cols_bottom[2]:
             Precipitation= {usace.get('precipitation') or 'N/A'}
           </div>
 
-          {f"<img src='{graph_uri}' style='width:100%; height:22vh; object-fit:contain; margin-top:8px; background:#fff; border-radius:4px;'/>" if graph_uri else ""}
+          {f"<img src='{graph_uri}' style='width:100%; height:22vh; object-fit:contain; margin-top:8px; background:#303030; border-radius:4px;'/>" if graph_uri else ""}
         </div>
         """
         st.markdown(usace_html, unsafe_allow_html=True)

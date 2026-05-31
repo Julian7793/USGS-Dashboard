@@ -196,10 +196,14 @@ st.set_page_config(page_title="USGS Water Graphs", layout="wide")
 css = """
 <style>
   :root {
-    --dashboard-row-gap: 14px;
+    --dashboard-row-gap: 28px;
     --dashboard-footer-height: 24px;
-    --dashboard-card-height: calc((100vh - 164px - var(--dashboard-row-gap) - var(--dashboard-footer-height)) / 2);
-    --dashboard-image-height: calc(var(--dashboard-card-height) - 27px);
+    --dashboard-card-padding: 4px;
+    --dashboard-latest-height: 24px;
+    --dashboard-card-height: calc((100vh - 196px - var(--dashboard-row-gap) - var(--dashboard-footer-height)) / 2);
+    --dashboard-image-height: calc(
+      var(--dashboard-card-height) - var(--dashboard-latest-height) - (2 * var(--dashboard-card-padding))
+    );
     --dashboard-card-spacing: 1px;
   }
 
@@ -235,16 +239,21 @@ css = """
     max-height: var(--dashboard-image-height);
     object-fit: contain;
     display: block;
+    flex: 0 0 var(--dashboard-image-height);
     margin: 0 auto var(--dashboard-card-spacing) auto;
     border-radius: 6px;
   }
   .latest-info {
     width: 100%;
+    min-height: var(--dashboard-latest-height);
     margin: 0;
     color: #DDDDDD;
     font-size: 105%;
-    line-height: 1.05;
+    line-height: 1.1;
     text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
   .graph-card {
     width: calc(100% - 4px);
@@ -262,8 +271,9 @@ css = """
     gap: 8px;
   }
   .graph-data-card {
-    padding: 3px;
+    padding: var(--dashboard-card-padding);
     justify-content: flex-start;
+    overflow: hidden;
     gap: 0;
   }
   .graph-card a { color: #8AB4F8; }

@@ -2,6 +2,7 @@ import base64
 from html import escape
 from io import BytesIO
 from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 import requests
 import streamlit as st
 from streamlit_autorefresh import st_autorefresh
@@ -19,26 +20,27 @@ except Exception:
 from scraper import fetch_site_graphs, fetch_usace_brookville_data, fetch_usgs_timeseries
 
 
-DISPLAY_TIMEZONE = timezone(timedelta(hours=-5))
-DISPLAY_TIMEZONE_LABEL = "UTC-5"
+DISPLAY_TIMEZONE = ZoneInfo("America/New_York")
+DISPLAY_TIMEZONE_LABEL = "Eastern Time"
 DISPLAY_TIME_FORMAT = "%m/%d %I:%M %p"
 LAST_UPDATED_TIME_FORMAT = "%Y-%m-%d %I:%M %p"
 
 
 def _to_display_timezone(timestamp):
-    """Return ``timestamp`` in the fixed UTC-5 display timezone."""
+    """Return ``timestamp`` in Eastern Time, including daylight saving changes."""
     if timestamp.tzinfo is None:
         timestamp = timestamp.replace(tzinfo=timezone.utc)
     return timestamp.astimezone(DISPLAY_TIMEZONE)
 
 
 def _format_display_time(timestamp, time_format=DISPLAY_TIME_FORMAT):
-    """Format a timestamp for the dashboard using UTC-5 and 12-hour time."""
-    return f"{_to_display_timezone(timestamp).strftime(time_format)} {DISPLAY_TIMEZONE_LABEL}"
+    """Format a timestamp for the dashboard using Eastern Time and 12-hour time."""
+    display_timestamp = _to_display_timezone(timestamp)
+    return display_timestamp.strftime(f"{time_format} %Z")
 
 
-def _set_utc_minus_five_axis(ax):
-    """Format chart x-axis ticks in fixed UTC-5, 12-hour time."""
+def _set_eastern_time_axis(ax):
+    """Format chart x-axis ticks in Eastern Time with daylight saving changes."""
     ax.xaxis.set_major_formatter(mdates.DateFormatter(DISPLAY_TIME_FORMAT, tz=DISPLAY_TIMEZONE))
     ax.set_xlabel(f"Time ({DISPLAY_TIMEZONE_LABEL})", color="#DDDDDD", fontsize=8)
 
@@ -125,7 +127,7 @@ def _usgs_graph_data(site, days=7):
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
 
-    _set_utc_minus_five_axis(ax)
+    _set_eastern_time_axis(ax)
 
     latest_time = _format_display_time(xs[-1])
     latest_value = f"{ys[-1]:.2f} {unit}".strip()
@@ -410,7 +412,7 @@ def _io_graph_data_uri(days=7):
     ax.tick_params(colors="#DDDDDD")
     ax.spines["bottom"].set_color("#777777")
     ax.spines["left"].set_color("#777777")
-    _set_utc_minus_five_axis(ax)
+    _set_eastern_time_axis(ax)
     ax.set_title("Inflow / Outflow (last 7 days)", color="#DDDDDD", pad=4, fontsize=10)
     ax.legend(loc="upper right", facecolor="#404040", edgecolor="#777777", labelcolor="#DDDDDD", fontsize=8)
 

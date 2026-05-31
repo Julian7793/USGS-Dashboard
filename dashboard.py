@@ -492,6 +492,10 @@ def get_usace_inflow_outflow_graph(inflow_tsid, outflow_tsid):
     return _usace_io_graph_data_uri(inflow_tsid, outflow_tsid, days=7)
 
 
+# --- LAST UPDATED HEADER ---
+updated_time = _format_display_time(datetime.now(timezone.utc), LAST_UPDATED_TIME_FORMAT)
+st.caption(f"Last updated: {updated_time}")
+
 # --- LAYOUT ---
 # Row 1: 3 graphs
 cols_top = st.columns(3)
@@ -570,7 +574,3 @@ with cols_bottom[2]:
             """,
             unsafe_allow_html=True,
         )
-
-# --- LAST UPDATED FOOTER ---
-updated_time = _format_display_time(datetime.now(timezone.utc), LAST_UPDATED_TIME_FORMAT)
-st.caption(f"Last updated: {updated_time}")

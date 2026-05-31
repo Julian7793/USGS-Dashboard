@@ -195,6 +195,12 @@ st.set_page_config(page_title="USGS Water Graphs", layout="wide")
 # --- STYLE ---
 css = """
 <style>
+  :root {
+    --dashboard-card-height: calc((100vh - 140px) / 2);
+    --dashboard-image-height: calc(var(--dashboard-card-height) - 27px);
+    --dashboard-card-spacing: 1px;
+  }
+
   .block-container {
     padding-top: 0 !important;
     padding-bottom: 0 !important;
@@ -209,6 +215,8 @@ css = """
   }
   div[data-testid="stStatusWidget"] { display: none !important; }
   div[data-testid="stDecoration"] { display: none !important; }
+  div[data-testid="stVerticalBlock"] { gap: 4px !important; }
+  div[data-testid="stElementContainer"] { margin: 0 !important; }
 
   /* Columns: remove default top spacing and align content to top */
   [data-testid="column"] {
@@ -221,11 +229,11 @@ css = """
   .stMarkdown, .stMarkdown p { margin: 0 !important; }
   img.graph-img {
     width: 100%;
-    height: calc((100vh - 64px) / 2 - 20px);
-    max-height: calc((100vh - 64px) / 2 - 20px);
+    height: var(--dashboard-image-height);
+    max-height: var(--dashboard-image-height);
     object-fit: contain;
     display: block;
-    margin: 0 auto 1px auto;
+    margin: 0 auto var(--dashboard-card-spacing) auto;
     border-radius: 6px;
   }
   .latest-info {
@@ -238,9 +246,9 @@ css = """
   }
   .graph-card {
     width: calc(100% - 4px);
-    height: calc((100vh - 64px) / 2);
-    max-height: calc((100vh - 64px) / 2);
-    margin: 0 auto 2px auto;
+    height: var(--dashboard-card-height);
+    max-height: var(--dashboard-card-height);
+    margin: 0 auto var(--dashboard-card-spacing) auto;
     background-color: #303030;
     border-radius: 6px;
     padding: 6px;
@@ -258,16 +266,20 @@ css = """
   }
   .graph-card a { color: #8AB4F8; }
 
+  html, body, [data-testid="stAppViewContainer"], .stApp {
+    overflow: hidden !important;
+  }
+
   /* App background */
   .stApp { background-color: #171717; }
 
   /* USACE card (same height as graphs) */
   .usace-card {
     width: calc(100% - 4px);
-    margin: 0 auto 2px auto;
+    margin: 0 auto var(--dashboard-card-spacing) auto;
     background-color: #303030;
     padding: 6px;
-    height: calc((100vh - 64px) / 2); /* match graph height while avoiding page scrollbar */
+    height: var(--dashboard-card-height); /* match graph height while avoiding page scrollbar */
     display: flex;
     flex-direction: column;
     justify-content: flex-start;
@@ -560,7 +572,7 @@ with cols_bottom[2]:
             Precipitation 24hr total= {usace.get('precipitation') or 'N/A'}
           </div>
 
-          {f"<img src='{graph_uri}' style='width:100%; height:22vh; object-fit:contain; margin-top:8px; background:#303030; border-radius:4px;'/>" if graph_uri else ""}
+          {f"<img src='{graph_uri}' style='width:100%; height:17vh; object-fit:contain; margin-top:8px; background:#303030; border-radius:4px;'/>" if graph_uri else ""}
         </div>
         """
         st.markdown(usace_html, unsafe_allow_html=True)

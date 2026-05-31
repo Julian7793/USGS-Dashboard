@@ -22,6 +22,7 @@ from scraper import fetch_site_graphs, fetch_usace_brookville_data, fetch_usgs_t
 
 DISPLAY_TIMEZONE = ZoneInfo("America/New_York")
 DISPLAY_TIMEZONE_LABEL = "Eastern Time"
+LATEST_INFO_TIMEZONE = timezone(timedelta(hours=-4), "EDT")
 DISPLAY_TIME_FORMAT = "%m/%d %I:%M %p"
 LAST_UPDATED_TIME_FORMAT = "%Y-%m-%d %I:%M %p"
 
@@ -37,6 +38,14 @@ def _format_display_time(timestamp, time_format=DISPLAY_TIME_FORMAT):
     """Format a timestamp for the dashboard using Eastern Time and 12-hour time."""
     display_timestamp = _to_display_timezone(timestamp)
     return display_timestamp.strftime(f"{time_format} %Z")
+
+
+def _format_latest_info_time(timestamp):
+    """Format the latest-observation timestamp using fixed EDT (UTC-4)."""
+    if timestamp.tzinfo is None:
+        timestamp = timestamp.replace(tzinfo=timezone.utc)
+    latest_timestamp = timestamp.astimezone(LATEST_INFO_TIMEZONE)
+    return latest_timestamp.strftime(f"{DISPLAY_TIME_FORMAT} %Z")
 
 
 def _set_eastern_time_axis(ax):
@@ -129,7 +138,7 @@ def _usgs_graph_data(site, days=7):
 
     _set_eastern_time_axis(ax)
 
-    latest_time = _format_display_time(xs[-1])
+    latest_time = _format_latest_info_time(xs[-1])
     latest_value = f"{ys[-1]:.2f} {unit}".strip()
     latest_text = f"Latest: {latest_value} at {latest_time}"
 

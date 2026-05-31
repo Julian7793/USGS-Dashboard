@@ -43,8 +43,8 @@ def _render_error_graph(site):
     )
 
 
-def _usgs_graph_data_uri(site, days=7):
-    """Build a local graph image from USGS JSON data.
+def _usgs_graph_data(site, days=7):
+    """Build a local graph image and latest-value label from USGS JSON data.
 
     Returning a data URI avoids relying on browser-side loading of the legacy
     USGS graph image endpoint, which is the part that commonly fails in the
@@ -102,28 +102,18 @@ def _usgs_graph_data_uri(site, days=7):
 
     latest_time = xs[-1].strftime("%m/%d %H:%M")
     latest_value = f"{ys[-1]:.2f} {unit}".strip()
-    ax.text(
-        0.99,
-        0.02,
-        f"Latest: {latest_value} at {latest_time}",
-        transform=ax.transAxes,
-        ha="right",
-        va="bottom",
-        color="#DDDDDD",
-        fontsize=8,
-        bbox={"facecolor": "#303030", "edgecolor": "#777777", "alpha": 0.85, "pad": 3},
-    )
+    latest_text = f"Latest: {latest_value} at {latest_time}"
 
     fig.autofmt_xdate(rotation=25, ha="right")
     fig.tight_layout(pad=1)
-    return _fig_to_data_uri(fig)
+    return {"image_uri": _fig_to_data_uri(fig), "latest_text": latest_text}
 
 
 @st.cache_data(ttl=900, show_spinner=False)
 def get_usgs_graph_image(site_no, parm_cd, title, page_url):
     """Cache rendered USGS graph images independently of the site list."""
     site = {"site_no": site_no, "parm_cd": parm_cd, "title": title, "page_url": page_url}
-    return _usgs_graph_data_uri(site)
+    return _usgs_graph_data(site)
 
 
 def render_usgs_graph(site):
@@ -134,7 +124,12 @@ def render_usgs_graph(site):
         site.get("page_url"),
     )
     if graph_uri:
-        st.markdown(f"<img src='{graph_uri}' class='graph-img'>", unsafe_allow_html=True)
+        image_uri = graph_uri.get("image_uri")
+        latest_text = escape(graph_uri.get("latest_text") or "Latest: N/A")
+        st.markdown(
+            f"<img src='{image_uri}' class='graph-img'><div class='latest-info'>{latest_text}</div>",
+            unsafe_allow_html=True,
+        )
     else:
         _render_error_graph(site)
 
@@ -184,9 +179,15 @@ css = """
     max-height: 44vh;
     object-fit: contain;
     display: block;
-    margin: 6px auto;
+    margin: 6px auto 2px auto;
     border-radius: 6px;
     background-color: #303030;
+  }
+  .latest-info {
+    width: calc(100% - 12px);
+    margin: 0 auto 6px auto;
+    color: #DDDDDD;
+    font-size: 125%;
   }
   .graph-card {
     width: calc(100% - 12px);

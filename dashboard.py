@@ -144,9 +144,11 @@ def format_delta(delta, unit):
         text = "24 hour change: N/A"
         color = "gray"
     else:
-        color = "green" if delta > 0 else "red" if delta < 0 else "gray"
-        sign = "+" if delta > 0 else ""
-        text = f"24 hour change: {sign}{delta:.2f} {unit}"
+        numeric_delta = float(delta)
+        color = "green" if numeric_delta > 0 else "red" if numeric_delta < 0 else "gray"
+        sign = "+" if numeric_delta > 0 else "-" if numeric_delta < 0 else ""
+        formatted_delta = f"{abs(numeric_delta):,.2f}".rstrip("0").rstrip(".")
+        text = f"24 hour change: {sign}{formatted_delta} {unit}"
     return f'<span style="font-size:1em;color:{color}">{text}</span>'
 
 # --- PAGE CONFIG ---
@@ -177,17 +179,20 @@ css = """
 
   .stMarkdown, .stMarkdown p { margin: 0 !important; }
   img.graph-img {
-    width: 100%;
-    height: 46vh;
-    max-height: 46vh;
+    width: calc(100% - 12px);
+    height: 44vh;
+    max-height: 44vh;
     object-fit: contain;
     display: block;
+    margin: 6px auto;
     border-radius: 6px;
     background-color: #303030;
   }
   .graph-card {
-    height: 46vh;
-    max-height: 46vh;
+    width: calc(100% - 12px);
+    height: 44vh;
+    max-height: 44vh;
+    margin: 6px auto;
     background-color: #303030;
     border-radius: 6px;
     padding: 16px;
@@ -205,9 +210,11 @@ css = """
 
   /* USACE card (same height as graphs) */
   .usace-card {
+    width: calc(100% - 12px);
+    margin: 6px auto;
     background-color: #303030;
     padding: 12px;
-    height: 46vh;               /* match graph height */
+    height: 44vh;               /* match graph height with spacing */
     display: flex;
     flex-direction: column;
     justify-content: flex-start;

@@ -16,6 +16,15 @@ REQUEST_HEADERS = {
 }
 
 
+def _format_usace_value(value, unit):
+    """Format a USACE numeric value with thousands separators and units."""
+    if value is None:
+        return None
+
+    formatted_value = f"{float(value):,.2f}".rstrip("0").rstrip(".")
+    return f"{formatted_value} {unit}".strip()
+
+
 def _parse_usgs_timestamp(timestamp):
     """Parse a USGS timestamp and normalize naive values to UTC."""
     parsed_timestamp = datetime.fromisoformat(str(timestamp).replace("Z", "+00:00"))
@@ -170,7 +179,7 @@ def fetch_usace_brookville_data():
             value = ts.get("latest_value")
             unit = ts.get("unit", "")
             delta = ts.get("delta24hr")
-            formatted = f"{value:.2f} {unit}" if value is not None else None
+            formatted = _format_usace_value(value, unit)
 
             if label == "elevation":
                 result["elevation"] = formatted

@@ -288,25 +288,25 @@ def get_usgs_graphs():
 data = get_usgs_graphs()
 data.append({
     "site_no": "03274615",
-    "title": "East Fork Whitewater River near Abington",
+    "title": "Great Miami River at Miamitown OH - USGS-03274615",
     "parm_cd": "00065",
     "page_url": "https://waterdata.usgs.gov/monitoring-location/USGS-03274615",
     "image_url": "https://waterdata.usgs.gov/nwisweb/graph?agency_cd=USGS&site_no=03274615&parm_cd=00065&period=7"
 })
 
-# Put the East Fork Whitewater River graph where the Brookville Lake graph
-# previously appeared, and move Brookville Lake into East Fork's former slot.
+# Put the Great Miami River graph where the Brookville Lake graph
+# previously appeared, and move Brookville Lake into Great Miami's former slot.
 brookville_lake_index = next(
     (index for index, site in enumerate(data) if site.get("site_no") == "03275990"),
     None,
 )
-east_fork_index = next(
+great_miami_index = next(
     (index for index, site in enumerate(data) if site.get("site_no") == "03274615"),
     None,
 )
-if brookville_lake_index is not None and east_fork_index is not None:
-    data[brookville_lake_index], data[east_fork_index] = (
-        data[east_fork_index],
+if brookville_lake_index is not None and great_miami_index is not None:
+    data[brookville_lake_index], data[great_miami_index] = (
+        data[great_miami_index],
         data[brookville_lake_index],
     )
 

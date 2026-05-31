@@ -288,12 +288,11 @@ css = """
   .last-updated-footer {
     height: var(--dashboard-footer-height);
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     justify-content: center;
     color: #BDBDBD;
     font-size: 0.85rem;
     line-height: 1;
-    padding-top: 14px;
     box-sizing: border-box;
     background: transparent;
   }

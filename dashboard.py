@@ -197,7 +197,7 @@ css = """
 <style>
   :root {
     --dashboard-row-gap: 18px;
-    --dashboard-footer-height: 26px;
+    --dashboard-footer-height: 42px;
     --dashboard-card-padding: 4px;
     --dashboard-latest-height: 28px;
     --dashboard-card-height: calc((100vh - 84px - var(--dashboard-row-gap) - var(--dashboard-footer-height)) / 2);
@@ -288,12 +288,12 @@ css = """
   .last-updated-footer {
     height: var(--dashboard-footer-height);
     display: flex;
-    align-items: flex-end;
+    align-items: flex-start;
     justify-content: center;
     color: #BDBDBD;
     font-size: 0.85rem;
     line-height: 1;
-    padding-bottom: 2px;
+    padding-top: 14px;
     box-sizing: border-box;
     background: transparent;
   }

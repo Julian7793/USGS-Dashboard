@@ -120,7 +120,7 @@ def _usgs_graph_data(site, days=7):
     unit = graph_data.get("unit") or ""
     description = graph_data.get("description") or "Gage height"
 
-    fig = plt.figure(figsize=(7.2, 3.6), dpi=150)
+    fig = plt.figure(figsize=(8.6, 6.0), dpi=150)
     ax = fig.add_subplot(111)
     fig.patch.set_facecolor("#303030")
     ax.set_facecolor("#303030")
@@ -147,7 +147,7 @@ def _usgs_graph_data(site, days=7):
     return {"image_uri": _fig_to_data_uri(fig), "latest_text": latest_text}
 
 
-@st.cache_data(ttl=900, show_spinner=False)
+@st.cache_data(ttl=1800, show_spinner=False)
 def get_usgs_graph_image(site_no, parm_cd, title, page_url):
     """Cache rendered USGS graph images independently of the site list."""
     site = {"site_no": site_no, "parm_cd": parm_cd, "title": title, "page_url": page_url}
@@ -196,10 +196,10 @@ st.set_page_config(page_title="USGS Water Graphs", layout="wide")
 css = """
 <style>
   .block-container {
-    padding-top: 0 !important;
+    padding-top: 2px !important;
     padding-bottom: 0 !important;
-    padding-left: 8px !important;
-    padding-right: 8px !important;
+    padding-left: 4px !important;
+    padding-right: 4px !important;
     max-width: 1920px !important;
     background: transparent !important;
   }
@@ -209,8 +209,8 @@ css = """
 
   /* Columns: remove default top spacing and align content to top */
   [data-testid="column"] {
-    padding-left: 8px !important;
-    padding-right: 8px !important;
+    padding-left: 4px !important;
+    padding-right: 4px !important;
     margin-top: 0 !important;
     align-self: flex-start !important;
   }
@@ -218,29 +218,29 @@ css = """
   .stMarkdown, .stMarkdown p { margin: 0 !important; }
   img.graph-img {
     width: 100%;
-    height: calc(44vh - 48px);
-    max-height: calc(44vh - 48px);
+    height: calc((100vh - 58px) / 2 - 24px);
+    max-height: calc((100vh - 58px) / 2 - 24px);
     object-fit: contain;
     display: block;
-    margin: 0 auto 6px auto;
+    margin: 0 auto 2px auto;
     border-radius: 6px;
   }
   .latest-info {
     width: 100%;
     margin: 0;
     color: #DDDDDD;
-    font-size: 125%;
-    line-height: 1.2;
+    font-size: 105%;
+    line-height: 1.05;
     text-align: center;
   }
   .graph-card {
-    width: calc(100% - 12px);
-    height: 44vh;
-    max-height: 44vh;
-    margin: 6px auto;
+    width: calc(100% - 4px);
+    height: calc((100vh - 58px) / 2);
+    max-height: calc((100vh - 58px) / 2);
+    margin: 2px auto;
     background-color: #303030;
     border-radius: 6px;
-    padding: 16px;
+    padding: 8px;
     box-sizing: border-box;
     color: #DDDDDD;
     display: flex;
@@ -249,7 +249,7 @@ css = """
     gap: 8px;
   }
   .graph-data-card {
-    padding: 6px;
+    padding: 4px;
     justify-content: flex-start;
     gap: 0;
   }
@@ -260,11 +260,11 @@ css = """
 
   /* USACE card (same height as graphs) */
   .usace-card {
-    width: calc(100% - 12px);
-    margin: 6px auto;
+    width: calc(100% - 4px);
+    margin: 2px auto;
     background-color: #303030;
-    padding: 12px;
-    height: 44vh;               /* match graph height with spacing */
+    padding: 8px;
+    height: calc((100vh - 58px) / 2); /* match graph height with spacing on 1920x1080 */
     display: flex;
     flex-direction: column;
     justify-content: flex-start;
@@ -277,7 +277,7 @@ css = """
 st.markdown(css, unsafe_allow_html=True)
 
 # --- AUTOREFRESH ---
-REFRESH_INTERVAL = 300  # 5 minutes
+REFRESH_INTERVAL = 1800  # 30 minutes
 st_autorefresh(interval=REFRESH_INTERVAL * 1000, limit=None, key="autorefresh")
 
 # --- USGS GRAPHS ---
@@ -484,7 +484,7 @@ def _usace_io_graph_data_uri(inflow_tsid=None, outflow_tsid=None, days=7):
     return _fig_to_data_uri(fig)
 
 
-@st.cache_data(ttl=900, show_spinner=False)
+@st.cache_data(ttl=1800, show_spinner=False)
 def get_usace_inflow_outflow_graph(inflow_tsid, outflow_tsid):
     return _usace_io_graph_data_uri(inflow_tsid, outflow_tsid, days=7)
 

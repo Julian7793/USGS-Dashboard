@@ -198,9 +198,12 @@ css = """
   :root {
     --dashboard-row-gap: 18px;
     --dashboard-footer-height: 42px;
+    --dashboard-footer-top-gap: 14px;
     --dashboard-card-padding: 4px;
     --dashboard-latest-height: 28px;
-    --dashboard-card-height: calc((100vh - 84px - var(--dashboard-row-gap) - var(--dashboard-footer-height)) / 2);
+    --dashboard-card-height: calc(
+      (100vh - 84px - var(--dashboard-row-gap) - var(--dashboard-footer-height) - var(--dashboard-footer-top-gap)) / 2
+    );
     --dashboard-image-height: calc(
       var(--dashboard-card-height) - var(--dashboard-latest-height) - (2 * var(--dashboard-card-padding))
     );
@@ -287,6 +290,7 @@ css = """
   }
   .last-updated-footer {
     height: var(--dashboard-footer-height);
+    margin-top: var(--dashboard-footer-top-gap);
     display: flex;
     align-items: center;
     justify-content: center;

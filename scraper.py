@@ -190,6 +190,8 @@ def fetch_usace_brookville_data():
             "storage_delta": None,
             "storage_unit": None,
             "precipitation": None,
+            "inflow_tsid": None,
+            "outflow_tsid": None,
         }
 
         for ts in location.get("timeseries", []):
@@ -205,10 +207,12 @@ def fetch_usace_brookville_data():
                 result["inflow"] = formatted
                 result["inflow_delta"] = delta
                 result["inflow_unit"] = unit
+                result["inflow_tsid"] = ts.get("tsid")
             elif label == "outflow":
                 result["outflow"] = formatted
                 result["outflow_delta"] = delta
                 result["outflow_unit"] = unit
+                result["outflow_tsid"] = ts.get("tsid")
             elif label == "precipitation":
                 result["precipitation"] = _format_usace_precipitation(value, unit)
             elif "storage" in label and result["storage"] is None:

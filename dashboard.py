@@ -315,137 +315,176 @@ if brookville_lake_index is not None and great_miami_index is not None:
 usace = fetch_usace_brookville_data()
 
 # -------------------------------
-# CWMS (USACE) helper: tiny 7-day Inflow/Outflow graph
+# USACE helper: 7-day Inflow/Outflow graph from the Water Data timeseries tab
 # -------------------------------
-CDA_BASE = "https://cwms-data.usace.army.mil/cwms-data"
-OFFICE   = "LRL"  # Louisville
+USACE_REPORTING_BASE = "https://water.usace.army.mil/cda/reporting"
+USACE_PROVIDER = "lrl"
+BROOKVILLE_INFLOW_TSID = "Brookville.Flow-Inflow.Ave.1Hour.6Hours.lrldlb-comp"
+BROOKVILLE_OUTFLOW_TSID = "Brookville.Flow-Outflow.Ave.1Hour.1Hour.lrldlb-comp"
+
 
 def _utc_now_iso():
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
+
 def _iso_ago(days=7):
     return (datetime.now(timezone.utc) - timedelta(days=days)).isoformat().replace("+00:00", "Z")
 
+
 def _get_json(url, params=None, timeout=20):
-    r = requests.get(url, headers={"Accept": "application/json", "User-Agent": "RiverStats/1.0"}, params=params or {}, timeout=timeout)
+    r = requests.get(
+        url,
+        headers={"Accept": "application/json", "User-Agent": "USGS-Dashboard/1.0"},
+        params=params or {},
+        timeout=timeout,
+    )
     r.raise_for_status()
     return r.json()
 
-def _catalog_timeseries(name_like):
-    url = f"{CDA_BASE}/catalog/TIMESERIES"
-    params = {"office": OFFICE, "name-like": name_like, "page-size": 1000}
-    try:
-        j = _get_json(url, params=params)
-        entries = j.get("entries", []) if isinstance(j, dict) else []
-        return [e.get("name") for e in entries if "name" in e]
-    except Exception:
-        return []
 
-def _pick_best(names, needles):
-    def ok(n):
-        s = n.lower()
-        return all(needle.lower() in s for needle in needles)
-    # prefer instantaneous/short interval
-    ranked = []
-    for n in names:
-        if ok(n):
-            s = n.lower()
-            rank = 0
-            if ".inst" in s: rank += 3
-            if ".15minute" in s or ".15-min" in s: rank += 2
-            if ".1hour" in s: rank += 1
-            ranked.append((rank, n))
-    ranked.sort(reverse=True)
-    return ranked[0][1] if ranked else None
-
-def _fetch_timeseries(name, begin, end):
+def _fetch_usace_reporting_timeseries(name, begin, end):
     if not name:
         return []
-    url = f"{CDA_BASE}/timeseries"
-    params = {"office": OFFICE, "name": name, "begin": begin, "end": end, "page-size": 10000, "format": "json"}
-    try:
-        j = _get_json(url, params=params)
-    except Exception:
-        return []
-    vals = []
-    data = j.get("values") or j.get("values-ts") or j.get("valuesArray") or []
-    if isinstance(data, list):
-        if data and isinstance(data[0], dict) and "time" in data[0]:
-            for v in data:
-                vals.append((v.get("time"), v.get("value")))
-        elif data and isinstance(data[0], list):
-            for row in data:
-                if len(row) >= 2:
-                    vals.append((row[0], row[1]))
-    return vals
 
-def _io_graph_data_uri(days=7):
-    """
-    Build a base64 PNG data URI for a small Inflow/Outflow line chart (last `days`).
-    Returns None if series not found or matplotlib unavailable.
-    """
+    url = f"{USACE_REPORTING_BASE}/providers/{USACE_PROVIDER}/timeseries"
+    params = {"name": name, "begin": begin, "end": end}
+    try:
+        payload = _get_json(url, params=params)
+    except Exception as exc:
+        print(f"USACE timeseries fetch failed for {name}: {exc}")
+        return []
+
+    values = payload.get("values", []) if isinstance(payload, dict) else []
+    if not isinstance(values, list):
+        return []
+
+    points = []
+    for row in values:
+        if isinstance(row, dict):
+            timestamp, value = row.get("time"), row.get("value")
+        elif isinstance(row, list) and len(row) >= 2:
+            timestamp, value = row[0], row[1]
+        else:
+            continue
+        points.append((timestamp, value))
+    return points
+
+
+def _series_to_display_xy(series):
+    xs, ys = [], []
+    for timestamp_iso, value in series:
+        try:
+            timestamp = datetime.fromisoformat(str(timestamp_iso).replace("Z", "+00:00"))
+            xs.append(_to_display_timezone(timestamp))
+            ys.append(float(value))
+        except (TypeError, ValueError):
+            continue
+    return xs, ys
+
+
+def _style_usace_axis(ax):
+    ax.set_facecolor("#FFFFFF")
+    ax.grid(True, axis="y", color="#E0E0E0", linewidth=0.6)
+    ax.tick_params(colors="#000000", labelsize=7)
+    ax.spines["top"].set_visible(False)
+    ax.spines["left"].set_color("#333333")
+    ax.spines["bottom"].set_color("#333333")
+    ax.spines["right"].set_color("#333333")
+
+
+def _usace_io_graph_data_uri(inflow_tsid=None, outflow_tsid=None, days=7):
+    """Build the Brookville Inflow/Outflow graph shown on the USACE Timeseries tab."""
     if not MATPLOTLIB_OK:
         return None
 
-    # discover series names
-    candidates = set()
-    for hint in ["BROK1", "BROOKVILLE", "BROOKVILLE LAKE", "BROOKVILLE LK", "BROOKVILLE DAM"]:
-        candidates.update(_catalog_timeseries(f"%{hint}%"))
-
-    infl_name = _pick_best(candidates, ["flow-res in"]) or _pick_best(candidates, ["inflow"])
-    out_name  = _pick_best(candidates, ["flow-res out"]) or _pick_best(candidates, ["outflow"])
-
-    if not infl_name or not out_name:
-        return None
-
+    inflow_tsid = inflow_tsid or BROOKVILLE_INFLOW_TSID
+    outflow_tsid = outflow_tsid or BROOKVILLE_OUTFLOW_TSID
     end = _utc_now_iso()
     begin = _iso_ago(days)
 
-    infl = _fetch_timeseries(infl_name, begin, end)
-    out  = _fetch_timeseries(out_name,  begin, end)
-    if not infl and not out:
+    inflow = _fetch_usace_reporting_timeseries(inflow_tsid, begin, end)
+    outflow = _fetch_usace_reporting_timeseries(outflow_tsid, begin, end)
+    x_in, y_in = _series_to_display_xy(inflow)
+    x_out, y_out = _series_to_display_xy(outflow)
+
+    if not x_in and not x_out:
         return None
 
-    # convert ISO → datetime, pairs to lists (align by time visually; no resampling)
-    def to_xy(series):
-        xs, ys = [], []
-        for t_iso, v in series:
-            try:
-                t = datetime.fromisoformat(str(t_iso).replace("Z", "+00:00"))
-                xs.append(_to_display_timezone(t))
-                ys.append(float(v))
-            except Exception:
-                continue
-        return xs, ys
-
-    x_in, y_in = to_xy(infl)
-    x_out, y_out = to_xy(out)
-
-    # draw
-    fig = plt.figure(figsize=(6.6, 2.0), dpi=150)
+    fig = plt.figure(figsize=(7.6, 2.35), dpi=150)
+    fig.patch.set_facecolor("#FFFFFF")
     ax = fig.add_subplot(111)
-    fig.patch.set_facecolor("#303030")
-    ax.set_facecolor("#303030")
-    ax.grid(True, color="#555555", linewidth=0.5, alpha=0.6)
+    _style_usace_axis(ax)
 
+    inflow_line = None
+    outflow_line = None
     if x_in:
-        ax.plot(x_in, y_in, linewidth=1.6, label="Inflow (cfs)")
+        (inflow_line,) = ax.plot(
+            x_in,
+            y_in,
+            color="#00A3FF",
+            linewidth=1.4,
+            marker="o",
+            markersize=1.6,
+            label="Inflow",
+        )
     if x_out:
-        ax.plot(x_out, y_out, linewidth=1.6, label="Outflow (cfs)")
+        (outflow_line,) = ax.plot(
+            x_out,
+            y_out,
+            color="#2F35CC",
+            linewidth=1.2,
+            marker="o",
+            markersize=1.4,
+            label="Outflow",
+        )
 
-    ax.set_ylabel("cfs", color="#DDDDDD")
-    ax.tick_params(colors="#DDDDDD")
-    ax.spines["bottom"].set_color("#777777")
-    ax.spines["left"].set_color("#777777")
-    _set_eastern_time_axis(ax)
-    ax.set_title("Inflow / Outflow (last 7 days)", color="#DDDDDD", pad=4, fontsize=10)
-    ax.legend(loc="upper right", facecolor="#404040", edgecolor="#777777", labelcolor="#DDDDDD", fontsize=8)
+    all_values = y_in + y_out
+    y_max = max(all_values) if all_values else 1
+    y_top = max(1, y_max * 1.12)
+    ax.set_ylim(bottom=0, top=y_top)
+    ax.set_ylabel("Inflow (cfs)", color="#000000", fontsize=7)
+    ax.yaxis.set_major_formatter(lambda value, _: f"{value:,.0f} cfs")
 
-    # tighter layout for the small card
-    fig.tight_layout(pad=1)
+    right_axis = ax.twinx()
+    right_axis.set_ylim(ax.get_ylim())
+    right_axis.set_ylabel("Outflow (cfs)", color="#000000", fontsize=7, rotation=270, labelpad=10)
+    right_axis.yaxis.set_major_formatter(lambda value, _: f"{value:,.0f} cfs")
+    right_axis.tick_params(colors="#000000", labelsize=7)
+    right_axis.spines["top"].set_visible(False)
+    right_axis.spines["right"].set_color("#333333")
 
-    # to PNG bytes → data URI
+    ax.set_title("Inflow / Outflow", loc="left", color="#000000", fontsize=10, weight="bold", pad=6)
+    ax.text(
+        0.5,
+        1.03,
+        "Last 7 days from USACE Water Data Timeseries",
+        transform=ax.transAxes,
+        ha="center",
+        va="bottom",
+        color="#5A2A2A",
+        fontsize=6.5,
+    )
+    ax.xaxis.set_major_formatter(mdates.DateFormatter("%d %b", tz=DISPLAY_TIMEZONE))
+
+    handles = [line for line in (inflow_line, outflow_line) if line is not None]
+    if handles:
+        ax.legend(
+            handles=handles,
+            loc="upper center",
+            bbox_to_anchor=(0.5, -0.16),
+            ncol=len(handles),
+            frameon=False,
+            fontsize=7,
+        )
+
+    fig.tight_layout(pad=0.7)
     return _fig_to_data_uri(fig)
+
+
+@st.cache_data(ttl=900, show_spinner=False)
+def get_usace_inflow_outflow_graph(inflow_tsid, outflow_tsid):
+    return _usace_io_graph_data_uri(inflow_tsid, outflow_tsid, days=7)
+
 
 # --- LAYOUT ---
 # Row 1: 3 graphs
@@ -477,8 +516,11 @@ with cols_bottom[2]:
         outflow_delta_html = format_delta(usace.get("outflow_delta"), usace.get("outflow_unit"))
         storage_delta_html = format_delta(usace.get("storage_delta"), usace.get("storage_unit"))
 
-        # build the tiny graph (if possible); if it fails, we simply omit it
-        graph_uri = _io_graph_data_uri(days=7)
+        # Build the Timeseries-tab graph (if possible); if it fails, we simply omit it.
+        graph_uri = get_usace_inflow_outflow_graph(
+            usace.get("inflow_tsid"),
+            usace.get("outflow_tsid"),
+        )
 
         usace_html = f"""
         <div class="usace-card">
@@ -508,7 +550,7 @@ with cols_bottom[2]:
             Precipitation= {usace.get('precipitation') or 'N/A'}
           </div>
 
-          {f"<img src='{graph_uri}' style='width:100%; height:20vh; object-fit:contain; margin-top:8px; border-radius:4px;'/>" if graph_uri else ""}
+          {f"<img src='{graph_uri}' style='width:100%; height:22vh; object-fit:contain; margin-top:8px; background:#fff; border-radius:4px;'/>" if graph_uri else ""}
         </div>
         """
         st.markdown(usace_html, unsafe_allow_html=True)

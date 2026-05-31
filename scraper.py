@@ -25,6 +25,24 @@ def _format_usace_value(value, unit):
     return f"{formatted_value} {unit}".strip()
 
 
+def _format_usace_precipitation(value, unit):
+    """Format USACE precipitation, treating negative sentinel values as zero.
+
+    The USACE reporting API can return negative placeholder values (for
+    example, ``-901``) when precipitation has not been recorded. Since negative
+    precipitation is not meaningful for the dashboard, display those values as
+    zero instead of surfacing the placeholder to users.
+    """
+    if value is None:
+        return None
+
+    numeric_value = float(value)
+    if numeric_value < 0:
+        numeric_value = 0
+
+    return _format_usace_value(numeric_value, unit)
+
+
 def _parse_usgs_timestamp(timestamp):
     """Parse a USGS timestamp and normalize naive values to UTC."""
     parsed_timestamp = datetime.fromisoformat(str(timestamp).replace("Z", "+00:00"))
@@ -192,7 +210,7 @@ def fetch_usace_brookville_data():
                 result["outflow_delta"] = delta
                 result["outflow_unit"] = unit
             elif label == "precipitation":
-                result["precipitation"] = formatted
+                result["precipitation"] = _format_usace_precipitation(value, unit)
             elif "storage" in label and result["storage"] is None:
                 result["storage"] = formatted
                 result["storage_delta"] = delta

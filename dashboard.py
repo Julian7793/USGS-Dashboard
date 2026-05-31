@@ -127,7 +127,12 @@ def render_usgs_graph(site):
         image_uri = graph_uri.get("image_uri")
         latest_text = escape(graph_uri.get("latest_text") or "Latest: N/A")
         st.markdown(
-            f"<img src='{image_uri}' class='graph-img'><div class='latest-info'>{latest_text}</div>",
+            f"""
+            <div class='graph-card graph-data-card'>
+              <img src='{image_uri}' class='graph-img'>
+              <div class='latest-info'>{latest_text}</div>
+            </div>
+            """,
             unsafe_allow_html=True,
         )
     else:
@@ -174,20 +179,21 @@ css = """
 
   .stMarkdown, .stMarkdown p { margin: 0 !important; }
   img.graph-img {
-    width: calc(100% - 12px);
-    height: 44vh;
-    max-height: 44vh;
+    width: 100%;
+    height: calc(44vh - 48px);
+    max-height: calc(44vh - 48px);
     object-fit: contain;
     display: block;
-    margin: 6px auto 2px auto;
+    margin: 0 auto 6px auto;
     border-radius: 6px;
-    background-color: #303030;
   }
   .latest-info {
-    width: calc(100% - 12px);
-    margin: 0 auto 6px auto;
+    width: 100%;
+    margin: 0;
     color: #DDDDDD;
     font-size: 125%;
+    line-height: 1.2;
+    text-align: center;
   }
   .graph-card {
     width: calc(100% - 12px);
@@ -203,6 +209,11 @@ css = """
     flex-direction: column;
     justify-content: center;
     gap: 8px;
+  }
+  .graph-data-card {
+    padding: 6px;
+    justify-content: flex-start;
+    gap: 0;
   }
   .graph-card a { color: #8AB4F8; }
 
